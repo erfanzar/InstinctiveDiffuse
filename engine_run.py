@@ -37,6 +37,6 @@ if __name__ == "__main__":
 
     generator = generator.apply(weight_init)
     discriminator = discriminator.apply(weight_init)
-    fake_noise = create_noise(batch_size, z_dim, device=device)
-    noise_and_labels = torch.cat((fake_noise.float(), one_hot_labels.float()), 1)
-    fake = generator(noise_and_labels)
+    # fake_noise = create_noise(batch_size, z_dim, device=device)
+    # noise_and_labels = torch.cat((fake_noise.float(), one_hot_labels.float()), 1)
+    # fake = generator(noise_and_labels)
