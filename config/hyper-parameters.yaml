@@ -1,0 +1,19 @@
+sc: 1
+sc_discriminator: 1
+image_size: 416
+generator: [
+  #from, number ,name [arg : input, output, kernel, stride ,final layer]
+  [ -1,1,GeneratorBlock,[ 20,3,2,False,'nn.ReLU(True)' ] ],
+  [ -1,1,GeneratorBlock,[ 30,4,1,False,'nn.ReLU(True)' ] ],
+  [ -1,1,GeneratorBlock,[ 40,4,1,False,'nn.ReLU(True)' ] ],
+  [ -1,1,GeneratorBlock,[ 10,4,1,False,'nn.ReLU(True)' ] ],
+  [ -1,1,GeneratorBlock,[ 1,3,1,True ,'nn.Tanh()' ] ],
+]
+
+discriminator: [
+  [ -1,1,DiscriminatorBlock,[ 20,3,2,False,'nn.LeakyReLU(True,inplace=0.2)' ] ],
+  [ -1,1,DiscriminatorBlock,[ 30,4,1,False,'nn.LeakyReLU(True,inplace=0.2)' ] ],
+  [ -1,1,DiscriminatorBlock,[ 40,4,1,False,'nn.LeakyReLU(True,inplace=0.2)' ] ],
+  [ -1,1,DiscriminatorBlock,[ 10,4,1,False,'nn.LeakyReLU(True,inplace=0.2)' ] ],
+  [ -1,1,DiscriminatorBlock,[ 1,3,1,True ,None ] ],
+]
