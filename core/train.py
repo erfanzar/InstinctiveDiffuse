@@ -1,14 +1,14 @@
 from utils.utils import *
 
 
-def train(epochs: int = 500, generator_model: torch.nn.Module = None, discriminator_model: torch.nn.Module = None,
-          generator_optim: torch.optim.Adam = None,
-          discriminator_optim: torch.optim.Adam = None,
-          use_init_weight: bool = True, lr: float = 2e-4, image_size: int = 28,
-          data_shape: typing.Union[tuple, list] = None, cfg=None,
-          display_epoch: int = 50, criterion: torch.nn = None, n_classes: int = 10,
-          device: str = 'cuda:0' if torch.cuda.is_available() else 'cpu', z_dim: int = 240, batch_size: int = 128,
-          dataloader=None):
+def train_c(epochs: int = 500, generator_model: torch.nn.Module = None, discriminator_model: torch.nn.Module = None,
+            generator_optim: torch.optim.Adam = None,
+            discriminator_optim: torch.optim.Adam = None,
+            use_init_weight: bool = True, lr: float = 2e-4, image_size: int = 28,
+            data_shape: typing.Union[tuple, list] = None, cfg=None,
+            display_epoch: int = 50, criterion: torch.nn = None, n_classes: int = 10,
+            device: str = 'cuda:0' if torch.cuda.is_available() else 'cpu', z_dim: int = 240, batch_size: int = 128,
+            dataloader=None):
     generator = generator_model.apply(weight_init)
     discriminator = discriminator_model.apply(weight_init)
     real_label = 1
@@ -83,6 +83,76 @@ def train(epochs: int = 500, generator_model: torch.nn.Module = None, discrimina
 
             print(
                 f'\033[1;36m\r Current Index : {index} | Epoch : {epoch + 1}/{epochs} | GenLoss : {generator_loss.item()} | DiscLoss : {discriminator_loss.item()}',
+                end='')
+
+        print()
+
+
+def train_n(epochs: int = 500, generator_model: torch.nn.Module = None, discriminator_model: torch.nn.Module = None,
+            generator_optim: torch.optim.Adam = None,
+            discriminator_optim: torch.optim.Adam = None,
+            use_init_weight: bool = True, lr: float = 2e-4, image_size: int = 28,
+            data_shape: typing.Union[tuple, list] = None, cfg=None,
+            display_epoch: int = 50, criterion: torch.nn = None,
+            device: str = 'cuda:0' if torch.cuda.is_available() else 'cpu', z_dim: int = 120, batch_size: int = 128,
+            dataloader=None):
+    generator_model = generator_model.apply(weight_init)
+    discriminator_model = discriminator_model.apply(weight_init)
+    d_losses = []
+    img_list = []
+    g_losses = []
+    fixed_noise = torch.randn(64, z_dim, 1, 1, device=device)
+    real_label = 1
+    fake_label = 0
+    for epoch in range(epochs):
+        for index, (real, _) in enumerate(dataloader):
+            discriminator_model.zero_grad()
+            real = real.to(device)
+            current_batch = real.size(0)
+
+            label = torch.full((current_batch,), real_label, device=device, dtype=torch.float)
+
+            outputs = discriminator_model(real).view(-1)
+            error_discriminator_real = criterion(outputs, label)
+            error_discriminator_real.backward()
+
+            label.fill_(fake_label)
+
+            noise = create_noise(current_batch, z_dim)
+            fake = generator_model(noise)
+            # print(fake.shape)
+            outputs = discriminator_model(fake.detach()).view(-1)
+            error_discriminator_fake = criterion(outputs, label)
+            error_discriminator_fake.backward()
+
+            error_discriminator = error_discriminator_real + error_discriminator_fake
+
+            discriminator_optim.step()
+            label.fill_(real_label)
+            generator_model.zero_grad()
+
+            f = discriminator_model(fake).view(-1)
+            error_generator = criterion(f, label)
+            error_generator.backward()
+            generator_optim.step()
+
+            g_losses.append(error_generator.item())
+            d_losses.append(error_discriminator.item())
+
+            if epoch % display_epoch == 0 and epoch > 0:
+                plot_image_from_tensor(g_outputs)
+                plot_image_from_tensor(real)
+                dict_save = {
+                    'generator': generator_model.state_dict(),
+                    'generator-optim': generator_optim.state_dict(),
+                    'discriminator': discriminator_model.state_dict(),
+                    'discriminator-optim': discriminator_optim.state_dict(),
+                    'cfg': cfg
+                }
+                torch.save(dict_save, 'n_Model.pt')
+
+            print(
+                f'\033[1;36m\r Current Index : {index} | Epoch : {epoch + 1}/{epochs} | GenLoss : {error_generator.item()} | DiscLoss : {error_discriminator.item()}',
                 end='')
 
         print()

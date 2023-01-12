@@ -19,6 +19,7 @@ class Generator(TorchBaseModule):
         x = x.view(len(x), self.config['z'] + self.config['n_classes'], 1, 1)
         for m in self.model:
             x = m(x)
+            # print(f'xShape : {x.shape} , k = {m.k} , s = {m.s}')
         return x
 
     def forward(self, batch):

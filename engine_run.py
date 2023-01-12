@@ -8,7 +8,7 @@ from torchvision import transforms
 
 from core.discriminator import Discriminator
 from core.generator import Generator
-from core.train import train
+from core.train import train_n
 
 cfg = read_yaml('config/hyper-parameters.yaml')
 batch_size = 128
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     generator_optimizer = torch.optim.Adam(generator.parameters(), lr)
     discriminator_optimizer = torch.optim.Adam(discriminator.parameters(), lr)
 
-    train(generator_model=generator, discriminator_model=discriminator, epochs=number_of_epochs, z_dim=z_dim,
-          criterion=criterion, cfg=cfg, image_size=image_size,
-          discriminator_optim=discriminator_optimizer, generator_optim=generator_optimizer, batch_size=batch_size,
-          data_shape=data_shape, device=device, dataloader=data_loader, n_classes=n_classes, display_epoch=display_step)
+    train_n(generator_model=generator, discriminator_model=discriminator, epochs=number_of_epochs, z_dim=z_dim,
+            criterion=criterion, cfg=cfg, image_size=image_size,
+            discriminator_optim=discriminator_optimizer, generator_optim=generator_optimizer, batch_size=batch_size,
+            device=device, dataloader=data_loader, display_epoch=display_step)

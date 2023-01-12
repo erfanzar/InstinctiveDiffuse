@@ -22,11 +22,12 @@ def plot_image_from_tensor(tensor, num_images: int = 30, size: tuple = (1, 416, 
 
 
 def weight_init(m):
-    if isinstance(m, GeneratorBlock) or isinstance(m, DiscriminatorBlock):
-        # print(m.m[0].conv)
-        torch.nn.init.normal_(m.m[0].conv.weight, 0.0, 0.2)
-        if m.fl is False:
-            torch.nn.init.normal_(m.m[0].batch_norm.weight, 0.0, 0.2)
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.constant_(m.bias.data, 0)
 
 
 def ohn_vector_from_labels(labels, n_classes):

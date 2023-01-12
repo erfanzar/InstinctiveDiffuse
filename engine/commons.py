@@ -17,7 +17,7 @@ class Conv(M):
         self.to(DEVICE)
         self.conv = nn.Conv2d(c1, c2, kernel_size=k, stride=s, bias=False,
                               padding=p if p is not None else 0, groups=g).to(DEVICE)
-        nn.init.xavier_normal_(self.conv.weight.data)
+        # nn.init.xavier_normal_(self.conv.weight.data)
 
         self.activation = (
             eval(activation) if isinstance(activation, str) else activation
@@ -41,7 +41,7 @@ class TConv(M):
         self.form = form
         self.to(DEVICE)
         self.conv = nn.ConvTranspose2d(c1, c2, kernel_size=k, stride=s, groups=g, bias=False, padding=p).to(DEVICE)
-        nn.init.xavier_normal_(self.conv.weight.data)
+        # nn.init.xavier_normal_(self.conv.weight.data)
 
         self.activation = (
             eval(activation) if isinstance(activation, str) else activation
@@ -281,9 +281,13 @@ class GeneratorBlock(M):
         self.k = k
 
         self.m = nn.Sequential(
-            TConv(in_size, out_size, k=k, s=s, activation=act, using_bn=True, p=p),
+            # Conv(in_size, out_size, k=k, s=s, activation=act, using_bn=True, batch_first=True, p=p),
+            nn.ConvTranspose2d(in_size, out_size, kernel_size=k, stride=s, padding=p),
+            nn.BatchNorm2d(out_size),
+            nn.ReLU(True)
         ) if not fl else nn.Sequential(
-            TConv(in_size, out_size, p=p, k=k, s=s, activation=act, using_bn=False),
+            nn.ConvTranspose2d(in_size, out_size, kernel_size=k, stride=s, padding=p),
+            nn.Tanh()
         )
 
     def forward(self, x):
@@ -302,9 +306,13 @@ class DiscriminatorBlock(M):
         self.k = k
 
         self.m = nn.Sequential(
-            Conv(in_size, out_size, k=k, s=s, activation=act, using_bn=True, batch_first=True, p=p),
+            # Conv(in_size, out_size, k=k, s=s, activation=act, using_bn=True, batch_first=True, p=p),
+            nn.Conv2d(in_size, out_size, kernel_size=k, stride=s, padding=p),
+            nn.BatchNorm2d(out_size),
+            nn.LeakyReLU(0.2, True)
         ) if not fl else nn.Sequential(
-            Conv(in_size, out_size, k=k, s=s, activation=act, using_bn=False, batch_first=True, p=p),
+            nn.Conv2d(in_size, out_size, kernel_size=k, stride=s, padding=p),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
