@@ -281,13 +281,9 @@ class GeneratorBlock(M):
         self.k = k
 
         self.m = nn.Sequential(
-            # Conv(in_size, out_size, k=k, s=s, activation=act, using_bn=True, batch_first=True, p=p),
-            nn.ConvTranspose2d(in_size, out_size, kernel_size=k, stride=s, padding=p),
-            nn.BatchNorm2d(out_size),
-            nn.ReLU(True)
+            TConv(in_size, out_size, k=k, s=s, activation=act, using_bn=True, p=p),
         ) if not fl else nn.Sequential(
-            nn.ConvTranspose2d(in_size, out_size, kernel_size=k, stride=s, padding=p),
-            nn.Tanh()
+            TConv(in_size, out_size, p=p, k=k, s=s, activation=act, using_bn=False),
         )
 
     def forward(self, x):
@@ -306,13 +302,9 @@ class DiscriminatorBlock(M):
         self.k = k
 
         self.m = nn.Sequential(
-            # Conv(in_size, out_size, k=k, s=s, activation=act, using_bn=True, batch_first=True, p=p),
-            nn.Conv2d(in_size, out_size, kernel_size=k, stride=s, padding=p),
-            nn.BatchNorm2d(out_size),
-            nn.LeakyReLU(0.2, True)
+            Conv(in_size, out_size, k=k, s=s, activation=act, using_bn=True, batch_first=True, p=p),
         ) if not fl else nn.Sequential(
-            nn.Conv2d(in_size, out_size, kernel_size=k, stride=s, padding=p),
-            nn.Sigmoid()
+            Conv(in_size, out_size, k=k, s=s, activation=act, using_bn=False, batch_first=True, p=p),
         )
 
     def forward(self, x):
