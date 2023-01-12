@@ -1,0 +1,88 @@
+from utils.utils import *
+
+
+def train(epochs: int = 500, generator_model: torch.nn.Module = None, discriminator_model: torch.nn.Module = None,
+          generator_optim: torch.optim.Adam = None,
+          discriminator_optim: torch.optim.Adam = None,
+          use_init_weight: bool = True, lr: float = 2e-4, image_size: int = 28,
+          data_shape: typing.Union[tuple, list] = None, cfg=None,
+          display_epoch: int = 50, criterion: torch.nn = None, n_classes: int = 10,
+          device: str = 'cuda:0' if torch.cuda.is_available() else 'cpu', z_dim: int = 240, batch_size: int = 128,
+          dataloader=None):
+    generator = generator_model.apply(weight_init)
+    discriminator = discriminator_model.apply(weight_init)
+    real_label = 1
+    fake_label = 0
+    generator_input_dim, discriminator_input_dim = calculate_input_dim(z_dim=z_dim, data_shape=data_shape,
+                                                                       n_classes=n_classes)
+    discriminator_losses = []
+    generator_losses = []
+    for epoch in range(epochs):
+        for index, (real_x, labels) in enumerate(dataloader):
+            discriminator_optim.zero_grad()
+
+            real_x = real_x.to(device)
+            labels = labels.to(device)
+            b_size = real_x.cpu().size(0)
+
+            one_hot_labels = ohn_vector_from_labels(labels=labels, n_classes=n_classes)
+            image_one_hot_labels = one_hot_labels[:, :, None, None].repeat(1, 1, image_size, image_size)
+            # attar_print(image_one_hot_labels=image_one_hot_labels.shape)
+            fake_noise = create_noise(len(real_x), input_dim=z_dim, device=device)
+            noise_and_labels = torch.concat((fake_noise, one_hot_labels), 1)
+            # attar_print(noise_and_labels=noise_and_labels.shape)
+            # print(f'noise_and_labels : {noise_and_labels}')
+            fake = generator(noise_and_labels)
+
+            # attar_print(fake=fake.shape)
+            # attar_print(fake_noise=fake_noise.shape)
+
+            assert len(fake) == len(real_x)
+
+            fake_image_and_labels = torch.cat((fake, image_one_hot_labels), 1)
+            real_image_and_labels = torch.cat((real_x, image_one_hot_labels), 1)
+
+            discriminator_fake_pred = discriminator(fake_image_and_labels.detach())
+            discriminator_real_pred = discriminator(real_image_and_labels)
+            assert len(discriminator_real_pred) == len(real_x)
+            assert torch.any(fake_image_and_labels != real_image_and_labels)
+
+            discriminator_fake_loss = criterion(discriminator_fake_pred, torch.zeros_like(discriminator_fake_pred))
+            discriminator_real_loss = criterion(discriminator_real_pred, torch.ones_like(discriminator_real_pred))
+            discriminator_loss = (discriminator_real_loss + discriminator_fake_loss) / 2
+            discriminator_real_loss.backward()
+            discriminator_fake_loss.backward()
+            # discriminator_loss.backward(retain_graph=True)
+            discriminator_optim.step()
+            discriminator_losses += [discriminator_loss.item()]
+
+            generator_optim.zero_grad()
+            fake_image_and_labels = torch.cat((fake, image_one_hot_labels), 1)
+            discriminator_fake_pred = discriminator(fake_image_and_labels)
+            # print(discriminator_fake_pred.shape)
+            generator_loss = criterion(discriminator_fake_pred, torch.ones_like(discriminator_fake_pred))
+            generator_loss.backward()
+            generator_optim.step()
+            generator_losses += [generator_loss.item()]
+
+            if epoch % display_epoch == 0 and epoch > 0:
+                generator_mean = sum(generator_losses[-display_epoch:]) / display_epoch
+                discriminator_mean = sum(discriminator_losses[-display_epoch:]) / display_epoch
+
+                plot_image_from_tensor(fake)
+                plot_image_from_tensor(real_x)
+                dict_save = {
+                    'generator': generator.state_dict(),
+                    'generator-optim': generator_optim.state_dict(),
+                    'discriminator': discriminator.state_dict(),
+                    'discriminator-optim': discriminator_optim.state_dict(),
+                    'cfg': cfg
+                }
+                torch.save(dict_save, 'Model.pt')
+                print(f'Step {epoch} : GeneratorLoss = {generator_mean} | DiscriminatorLoss = {discriminator_mean}')
+
+            print(
+                f'\033[1;36m\r Current Index : {index} | Epoch : {epoch + 1}/{epochs} | GenLoss : {generator_loss.item()} | DiscLoss : {discriminator_loss.item()}',
+                end='')
+
+        print()
