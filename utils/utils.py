@@ -1,11 +1,12 @@
 import matplotlib.pyplot as plt
 from torchvision.utils import make_grid
+import torch.nn as nn
+import torch
+from modules.modules import *
 
-from engine.commons import *
 
-
-def create_noise(n_sample: int, input_dim: int, fac_size: int, device='cuda:0' if torch.cuda.is_available() else 'cpu'):
-    return torch.rand(n_sample, input_dim, fac_size, fac_size, device=device)
+def create_noise(n_sample: int, input_dim: int, device='cuda:0' if torch.cuda.is_available() else 'cpu'):
+    return torch.randn(n_sample, input_dim, device=device)
 
 
 def plot_image_from_tensor(tensor, num_images: int = 30, size: tuple = (1, 416, 416), number_of_rows: int = 5,
@@ -14,18 +15,20 @@ def plot_image_from_tensor(tensor, num_images: int = 30, size: tuple = (1, 416, 
     image_unflat = tensor.detach().cpu()
     image_grid = make_grid(image_unflat[:num_images], number_of_rows=number_of_rows)
 
-    plt.imshow(image_grid.premute(1, 2, 0).squeeze())
+    plt.imshow(image_grid.permute(1, 2, 0).squeeze())
     if show:
         plt.show()
     else:
-        return image_grid.premute(1, 2, 0).squeeze()
+        return image_grid.permute(1, 2, 0).squeeze()
 
 
 def weight_init(m):
-    if isinstance(m, GeneratorBlock):
-        torch.nn.init.normal_(m.m[0], 0.0, 0.2)
-        if m.fl is False:
-            torch.nn.init.normal_(m.m[1], 0.0, 0.2)
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.constant_(m.bias.data, 0)
 
 
 def ohn_vector_from_labels(labels, n_classes):

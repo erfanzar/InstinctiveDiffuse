@@ -1,0 +1,22 @@
+z: 100
+n_classes: 0
+image_channels: 3
+image_size: 64
+
+generator: [
+  #from, number ,name [arg :  output, kernel, stride ,padding]
+  [ -1,1,nn.ConvTranspose2d,[ 512,4,1,0 ] ],
+  [ -1,1,nn.LeakyReLU,[ 0.2,True ] ],
+
+  [ -1,1,nn.ConvTranspose2d,[ 512,3,1,0 ] ],
+  [ -1,1,nn.LeakyReLU,[ 0.2,True ] ],
+  
+]
+
+discriminator: [
+  [ -1,1,DiscriminatorBlock,[ 64,4,2,1,False,'nn.LeakyReLU(True,inplace=0.2)' ] ],
+  [ -1,1,DiscriminatorBlock,[ 128,4,2,1,False,'nn.LeakyReLU(True,inplace=0.2)' ] ],
+  [ -1,1,DiscriminatorBlock,[ 256,4,2,1,False,'nn.LeakyReLU(True,inplace=0.2)' ] ],
+  [ -1,1,DiscriminatorBlock,[ 512,4,2,1,False,'nn.LeakyReLU(True,inplace=0.2)' ] ],
+  [ -1,1,DiscriminatorBlock,[ 1,4,1,0,True ,'nn.Sigmoid()' ] ],
+]

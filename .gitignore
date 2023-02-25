@@ -5,8 +5,11 @@ __pycache__/
 
 # C extensions
 *.so
-
+*.jpg
+*.png
+*.pth
 # Distribution / packaging
+data/
 .Python
 build/
 develop-eggs/
@@ -14,6 +17,8 @@ dist/
 downloads/
 eggs/
 MNIST/
+DATA/
+*.pt
 .eggs/
 lib/
 lib64/
