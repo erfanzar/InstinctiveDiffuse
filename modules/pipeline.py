@@ -1,7 +1,22 @@
-import torch
-from typing import Optional, Union
 import os
 import json
+
+import torch
+
+import inspect
+from typing import Any, Callable, Dict, List, Optional, Union, Tuple
+from packaging import version
+import numpy as np
+
+from diffusers.schedulers import KarrasDiffusionSchedulers
+
+from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer, PreTrainedModel, CLIPConfig, \
+    CLIPVisionModel
+from .pipeline_utils import FrozenDict, cosine_distance, randn_tensor
+from erutils.lightning import pars_model_v2
+from diffusers.utils import logging, is_accelerate_available, is_accelerate_version, deprecate
+
+logger = logging.get_logger(__name__)
 
 
 class ConfigMixin:
@@ -164,43 +179,8 @@ class ConfigMixin:
                     revision=revision,
                 )
 
-            except RepositoryNotFoundError:
-                raise EnvironmentError(
-                    f"{pretrained_model_name_or_path} is not a local folder and is not a valid model identifier"
-                    " listed on 'https://huggingface.co/models'\nIf this is a private repository, make sure to pass a"
-                    " token having permission to this repo with `use_auth_token` or log in with `huggingface-cli"
-                    " login`."
-                )
-            except RevisionNotFoundError:
-                raise EnvironmentError(
-                    f"{revision} is not a valid git identifier (branch name, tag name or commit id) that exists for"
-                    " this model name. Check the model page at"
-                    f" 'https://huggingface.co/{pretrained_model_name_or_path}' for available revisions."
-                )
-            except EntryNotFoundError:
-                raise EnvironmentError(
-                    f"{pretrained_model_name_or_path} does not appear to have a file named {cls.config_name}."
-                )
-            except HTTPError as err:
-                raise EnvironmentError(
-                    "There was a specific connection error when trying to load"
-                    f" {pretrained_model_name_or_path}:\n{err}"
-                )
             except ValueError:
-                raise EnvironmentError(
-                    f"We couldn't connect to '{HUGGINGFACE_CO_RESOLVE_ENDPOINT}' to load this model, couldn't find it"
-                    f" in the cached files and it looks like {pretrained_model_name_or_path} is not the path to a"
-                    f" directory containing a {cls.config_name} file.\nCheckout your internet connection or see how to"
-                    " run the library in offline mode at"
-                    " 'https://huggingface.co/docs/diffusers/installation#offline-mode'."
-                )
-            except EnvironmentError:
-                raise EnvironmentError(
-                    f"Can't load config for '{pretrained_model_name_or_path}'. If you were trying to load it from "
-                    "'https://huggingface.co/models', make sure you don't have a local directory with the same name. "
-                    f"Otherwise, make sure '{pretrained_model_name_or_path}' is the correct path to a directory "
-                    f"containing a {cls.config_name} file"
-                )
+                print('ValueError cause was nothing found')
 
         try:
             # Load config dict

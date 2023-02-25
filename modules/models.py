@@ -1,11 +1,126 @@
 import typing
+from abc import ABC
 
 from .modules import Conv, TConv, PixelNorm, DoubleConv, Down, Up, OutConv
 from torch import nn
 from erutils import fprint
 from .pipeline import PipeLine
+
 import torch
+from packaging import version
+
+from diffusers.models import AutoencoderKL, UNet2DConditionModel
+import inspect
+from typing import Any, Callable, Dict, List, Optional, Union
+from packaging import version
+import numpy as np
+
+from diffusers.schedulers import KarrasDiffusionSchedulers
+
+from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer, PreTrainedModel, CLIPConfig, \
+    CLIPVisionModel
+from .pipeline_utils import FrozenDict, cosine_distance, randn_tensor
 from erutils.lightning import pars_model_v2
+from diffusers.utils import logging, is_accelerate_available, is_accelerate_version, deprecate
+
+logger = logging.get_logger(__name__)
+
+
+# CHECK REQUIRED =======>
+class SafetyChecker(PreTrainedModel, ABC):
+    config_class = CLIPConfig
+
+    _no_split_modules = ["CLIPEncoderLayer"]
+
+    def __init__(self, config: CLIPConfig):
+        super().__init__(config)
+
+        self.vision_model = CLIPVisionModel(config.vision_config)
+        self.visual_projection = nn.Linear(config.vision_config.hidden_size, config.projection_dim, bias=False)
+
+        self.concept_embeds = nn.Parameter(torch.ones(17, config.projection_dim), requires_grad=False)
+        self.special_care_embeds = nn.Parameter(torch.ones(3, config.projection_dim), requires_grad=False)
+
+        self.concept_embeds_weights = nn.Parameter(torch.ones(17), requires_grad=False)
+        self.special_care_embeds_weights = nn.Parameter(torch.ones(3), requires_grad=False)
+
+    @torch.no_grad()
+    def forward(self, clip_input, images):
+        pooled_output = self.vision_model(clip_input)[1]  # pooled_output
+        image_embeds = self.visual_projection(pooled_output)
+
+        # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
+        special_cos_dist = cosine_distance(image_embeds, self.special_care_embeds).cpu().float().numpy()
+        cos_dist = cosine_distance(image_embeds, self.concept_embeds).cpu().float().numpy()
+
+        result = []
+        batch_size = image_embeds.shape[0]
+        for i in range(batch_size):
+            result_img = {"special_scores": {}, "special_care": [], "concept_scores": {}, "bad_concepts": []}
+
+            # increase this value to create a stronger `nfsw` filter
+            # at the cost of increasing the possibility of filtering benign images
+            adjustment = 0.0
+
+            for concept_idx in range(len(special_cos_dist[0])):
+                concept_cos = special_cos_dist[i][concept_idx]
+                concept_threshold = self.special_care_embeds_weights[concept_idx].item()
+                result_img["special_scores"][concept_idx] = round(concept_cos - concept_threshold + adjustment, 3)
+                if result_img["special_scores"][concept_idx] > 0:
+                    result_img["special_care"].append({concept_idx, result_img["special_scores"][concept_idx]})
+                    adjustment = 0.01
+
+            for concept_idx in range(len(cos_dist[0])):
+                concept_cos = cos_dist[i][concept_idx]
+                concept_threshold = self.concept_embeds_weights[concept_idx].item()
+                result_img["concept_scores"][concept_idx] = round(concept_cos - concept_threshold + adjustment, 3)
+                if result_img["concept_scores"][concept_idx] > 0:
+                    result_img["bad_concepts"].append(concept_idx)
+
+            result.append(result_img)
+
+        has_nsfw_concepts = [len(res["bad_concepts"]) > 0 for res in result]
+
+        for idx, has_nsfw_concept in enumerate(has_nsfw_concepts):
+            if has_nsfw_concept:
+                images[idx] = np.zeros(images[idx].shape)  # black image
+
+        if any(has_nsfw_concepts):
+            logger.warning(
+                "Potential NSFW content was detected in one or more images. A black image will be returned instead."
+                " Try again with a different prompt and/or seed."
+            )
+
+        return images, has_nsfw_concepts
+
+    @torch.no_grad()
+    def forward_onnx(self, clip_input: torch.FloatTensor, images: torch.FloatTensor):
+        pooled_output = self.vision_model(clip_input)[1]  # pooled_output
+        image_embeds = self.visual_projection(pooled_output)
+
+        special_cos_dist = cosine_distance(image_embeds, self.special_care_embeds)
+        cos_dist = cosine_distance(image_embeds, self.concept_embeds)
+
+        # increase this value to create a stronger `nsfw` filter
+        # at the cost of increasing the possibility of filtering benign images
+        adjustment = 0.0
+
+        special_scores = special_cos_dist - self.special_care_embeds_weights + adjustment
+        # special_scores = special_scores.round(decimals=3)
+        special_care = torch.any(special_scores > 0, dim=1)
+        special_adjustment = special_care * 0.01
+        special_adjustment = special_adjustment.unsqueeze(1).expand(-1, cos_dist.shape[1])
+
+        concept_scores = (cos_dist - self.concept_embeds_weights) + special_adjustment
+        # concept_scores = concept_scores.round(decimals=3)
+        has_nsfw_concepts = torch.any(concept_scores > 0, dim=1)
+
+        images[has_nsfw_concepts] = 0.0  # black image
+
+        return images, has_nsfw_concepts
+
+
+# < CHECK REQUIRED >
 
 
 class GeneratorVPC(nn.Module):
@@ -237,7 +352,7 @@ class UNet(nn.Module):
         self.outc = torch.utils.checkpoint(self.outc)
 
 
-class StableDiffusionPipeline(PipeLine):
+class CGRModel(PipeLine):
     _optional_components = ["safety_checker", "feature_extractor"]
 
     def __init__(
@@ -247,35 +362,18 @@ class StableDiffusionPipeline(PipeLine):
             tokenizer: CLIPTokenizer,
             unet: UNet2DConditionModel,
             scheduler: KarrasDiffusionSchedulers,
-            safety_checker: StableDiffusionSafetyChecker,
+            safety_checker: SafetyChecker,
             feature_extractor: CLIPFeatureExtractor,
             requires_safety_checker: bool = True,
     ):
         super().__init__()
 
         if hasattr(scheduler.config, "steps_offset") and scheduler.config.steps_offset != 1:
-            deprecation_message = (
-                f"The configuration file of this scheduler: {scheduler} is outdated. `steps_offset`"
-                f" should be set to 1 instead of {scheduler.config.steps_offset}. Please make sure "
-                "to update the config accordingly as leaving `steps_offset` might led to incorrect results"
-                " in future versions. If you have downloaded this checkpoint from the Hugging Face Hub,"
-                " it would be very nice if you could open a Pull request for the `scheduler/scheduler_config.json`"
-                " file"
-            )
-            deprecate("steps_offset!=1", "1.0.0", deprecation_message, standard_warn=False)
             new_config = dict(scheduler.config)
             new_config["steps_offset"] = 1
             scheduler._internal_dict = FrozenDict(new_config)
 
         if hasattr(scheduler.config, "clip_sample") and scheduler.config.clip_sample is True:
-            deprecation_message = (
-                f"The configuration file of this scheduler: {scheduler} has not set the configuration `clip_sample`."
-                " `clip_sample` should be set to False in the configuration file. Please make sure to update the"
-                " config accordingly as not setting `clip_sample` in the config might lead to incorrect results in"
-                " future versions. If you have downloaded this checkpoint from the Hugging Face Hub, it would be very"
-                " nice if you could open a Pull request for the `scheduler/scheduler_config.json` file"
-            )
-            deprecate("clip_sample not set", "1.0.0", deprecation_message, standard_warn=False)
             new_config = dict(scheduler.config)
             new_config["clip_sample"] = False
             scheduler._internal_dict = FrozenDict(new_config)
@@ -286,8 +384,8 @@ class StableDiffusionPipeline(PipeLine):
                 " that you abide to the conditions of the Stable Diffusion license and do not expose unfiltered"
                 " results in services or applications open to the public. Both the diffusers team and Hugging Face"
                 " strongly recommend to keep the safety filter enabled in all public facing circumstances, disabling"
-                " it only for use-cases that involve analyzing network behavior or auditing its results. For more"
-                " information, please have a look at https://github.com/huggingface/diffusers/pull/254 ."
+                " it only for use-cases that involve analyzing network behavior or auditing its results."
+
             )
 
         if safety_checker is not None and feature_extractor is None:
@@ -418,30 +516,7 @@ class StableDiffusionPipeline(PipeLine):
             prompt_embeds: Optional[torch.FloatTensor] = None,
             negative_prompt_embeds: Optional[torch.FloatTensor] = None,
     ):
-        r"""
-        Encodes the prompt into text encoder hidden states.
 
-        Args:
-             prompt (`str` or `List[str]`, *optional*):
-                prompt to be encoded
-            device: (`torch.device`):
-                torch device
-            num_images_per_prompt (`int`):
-                number of images that should be generated per prompt
-            do_classifier_free_guidance (`bool`):
-                whether to use classifier free guidance or not
-            negative_prompt (`str` or `List[str]`, *optional*):
-                The prompt or prompts not to guide the image generation. If not defined, one has to pass
-                `negative_prompt_embeds`. instead. If not defined, one has to pass `negative_prompt_embeds`. instead.
-                Ignored when not using guidance (i.e., ignored if `guidance_scale` is less than `1`).
-            prompt_embeds (`torch.FloatTensor`, *optional*):
-                Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
-                provided, text embeddings will be generated from `prompt` input argument.
-            negative_prompt_embeds (`torch.FloatTensor`, *optional*):
-                Pre-generated negative text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt
-                weighting. If not provided, negative_prompt_embeds will be generated from `negative_prompt` input
-                argument.
-        """
         if prompt is not None and isinstance(prompt, str):
             batch_size = 1
         elif prompt is not None and isinstance(prompt, list):
@@ -649,7 +724,6 @@ class StableDiffusionPipeline(PipeLine):
         return latents
 
     @torch.no_grad()
-    @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
             self,
             prompt: Union[str, List[str]] = None,
