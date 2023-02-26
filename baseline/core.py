@@ -2,7 +2,7 @@ import typing
 
 import erutils
 
-from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion import StableDiffusionPipeline
+from modules.models import CGRModel
 import copy
 
 VERSIONS: typing.Optional[list[str]] = [
@@ -41,7 +41,7 @@ def using_realistic(prompt: typing.Optional[str]) -> typing.Optional[str]:
     return prompt
 
 
-def run_save(prompt: typing.Union[str, list[str]], model: typing.Optional[StableDiffusionPipeline]) -> None:
+def run_save(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRModel]) -> None:
     predictions = model(prompt).images[0]
     erutils.fprint(f'Writing Predictions To PNG format as an image into file [{prompt}.png]')
     predictions.save(f'{prompt}.png')
@@ -62,7 +62,7 @@ def check_prompt(prompt: typing.Optional[str]) -> typing.Union[str, None]:
         return None
 
 
-def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[StableDiffusionPipeline],
+def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRModel],
              use_version: typing.Optional[bool] = False, version: typing.Optional[str] = None,
              use_realistic: typing.Optional[bool] = True, image_format: typing.Optional[str] = 'png',
              use_check_prompt: typing.Optional[bool] = False, task: typing.Optional[str] = 'PIL'):

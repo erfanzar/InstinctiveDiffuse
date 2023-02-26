@@ -1,22 +1,45 @@
-import os
-import json
-
-import torch
-
+import importlib
 import inspect
-from typing import Any, Callable, Dict, List, Optional, Union, Tuple
-from packaging import version
+import json
+import os
+from pathlib import PosixPath
+from typing import Any, Callable, Dict, Optional, Union, Tuple
+
 import numpy as np
+import torch
+from PIL import Image
+from diffusers.utils import logging, deprecate, is_transformers_available
+from packaging import version
+from tqdm import tqdm
+from transformers import PreTrainedModel
 
-from diffusers.schedulers import KarrasDiffusionSchedulers
-
-from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer, PreTrainedModel, CLIPConfig, \
-    CLIPVisionModel
-from .pipeline_utils import FrozenDict, cosine_distance, randn_tensor
-from erutils.lightning import pars_model_v2
-from diffusers.utils import logging, is_accelerate_available, is_accelerate_version, deprecate
+from .pipeline_utils import FrozenDict
 
 logger = logging.get_logger(__name__)
+__version__: Optional[str] = '1.13.1'
+LOADABLE_CLASSES: Optional[Dict] = {
+    "diffusers": {
+        "ModelMixin": ["save_pretrained", "from_pretrained"],
+        "SchedulerMixin": ["save_pretrained", "from_pretrained"],
+        "DiffusionPipeline": ["save_pretrained", "from_pretrained"],
+        "OnnxRuntimeModel": ["save_pretrained", "from_pretrained"],
+    },
+    "transformers": {
+        "PreTrainedTokenizer": ["save_pretrained", "from_pretrained"],
+        "PreTrainedTokenizerFast": ["save_pretrained", "from_pretrained"],
+        "PreTrainedModel": ["save_pretrained", "from_pretrained"],
+        "FeatureExtractionMixin": ["save_pretrained", "from_pretrained"],
+        "ProcessorMixin": ["save_pretrained", "from_pretrained"],
+        "ImageProcessingMixin": ["save_pretrained", "from_pretrained"],
+    },
+    "onnxruntime.training": {
+        "ORTModule": ["save_pretrained", "from_pretrained"],
+    },
+}
+
+ALL_IMPORTABLE_CLASSES: Optional[Dict] = {}
+for library in LOADABLE_CLASSES:
+    ALL_IMPORTABLE_CLASSES.update(LOADABLE_CLASSES[library])
 
 
 class ConfigMixin:
@@ -128,7 +151,7 @@ class ConfigMixin:
             cls, pretrained_model_name_or_path: Union[str, os.PathLike], return_unused_kwargs=False, **kwargs
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
 
-        cache_dir = kwargs.pop("cache_dir", DIFFUSERS_CACHE)
+        cache_dir = kwargs.pop("cache_dir", './here/')
         force_download = kwargs.pop("force_download", False)
         resume_download = kwargs.pop("resume_download", False)
         proxies = kwargs.pop("proxies", None)
@@ -434,11 +457,10 @@ class PipeLine(ConfigMixin):
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path: Optional[Union[str, os.PathLike]], **kwargs):
 
-        cache_dir = kwargs.pop("cache_dir", DIFFUSERS_CACHE)
         resume_download = kwargs.pop("resume_download", False)
         force_download = kwargs.pop("force_download", False)
         proxies = kwargs.pop("proxies", None)
-        local_files_only = kwargs.pop("local_files_only", HF_HUB_OFFLINE)
+        # local_files_only = kwargs.pop("local_files_only", HF_HUB_OFFLINE)
         use_auth_token = kwargs.pop("use_auth_token", None)
         revision = kwargs.pop("revision", None)
         from_flax = kwargs.pop("from_flax", False)
@@ -448,7 +470,7 @@ class PipeLine(ConfigMixin):
         provider = kwargs.pop("provider", None)
         sess_options = kwargs.pop("sess_options", None)
         device_map = kwargs.pop("device_map", None)
-        low_cpu_mem_usage = kwargs.pop("low_cpu_mem_usage", _LOW_CPU_MEM_USAGE_DEFAULT)
+        low_cpu_mem_usage = kwargs.pop("low_cpu_mem_usage", False)
         return_cached_folder = kwargs.pop("return_cached_folder", False)
         variant = kwargs.pop("variant", None)
 
@@ -457,11 +479,11 @@ class PipeLine(ConfigMixin):
         if not os.path.isdir(pretrained_model_name_or_path):
             config_dict = cls.load_config(
                 pretrained_model_name_or_path,
-                cache_dir=cache_dir,
+                # cache_dir=cache_dir,
                 resume_download=resume_download,
                 force_download=force_download,
                 proxies=proxies,
-                local_files_only=local_files_only,
+                # local_files_only=local_files_only,
                 use_auth_token=use_auth_token,
                 revision=revision,
             )
@@ -598,7 +620,7 @@ class PipeLine(ConfigMixin):
             pipeline_class = get_class_from_dynamic_module(
                 custom_pipeline, module_file=file_name, cache_dir=cache_dir, revision=custom_revision
             )
-        elif cls != DiffusionPipeline:
+        elif cls != PipeLine:
             pipeline_class = cls
         else:
             diffusers_module = importlib.import_module(cls.__module__.split(".")[0])
@@ -608,7 +630,7 @@ class PipeLine(ConfigMixin):
         if pipeline_class.__name__ == "StableDiffusionInpaintPipeline" and version.parse(
                 version.parse(config_dict["_diffusers_version"]).base_version
         ) <= version.parse("0.5.1"):
-            from diffusers import StableDiffusionInpaintPipeline, StableDiffusionInpaintPipelineLegacy
+            from diffusers import StableDiffusionInpaintPipelineLegacy
 
             pipeline_class = StableDiffusionInpaintPipelineLegacy
 
@@ -712,6 +734,7 @@ class PipeLine(ConfigMixin):
 
                 if issubclass(class_obj, torch.nn.Module):
                     loading_kwargs["torch_dtype"] = torch_dtype
+                import diffusers
                 if issubclass(class_obj, diffusers.OnnxRuntimeModel):
                     loading_kwargs["provider"] = provider
                     loading_kwargs["sess_options"] = sess_options
@@ -719,6 +742,7 @@ class PipeLine(ConfigMixin):
                 is_diffusers_model = issubclass(class_obj, diffusers.ModelMixin)
 
                 if is_transformers_available():
+                    import transformers
                     transformers_version = version.parse(version.parse(transformers.__version__).base_version)
                 else:
                     transformers_version = "N/A"

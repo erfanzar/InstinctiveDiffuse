@@ -1,13 +1,12 @@
 import typing
-from typing import (Union, Optional)
+from typing import (Optional)
 
 import torch.cuda
 
 
 class HyperParameters(object):
-    provider: Optional[str] = "prompthero"
-    load_local: Optional[bool] = False
-    model_name: Optional[str] = "openjourney-v2"
+    load_local: Optional[bool] = True
+
     device: Optional[str] = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     d_type: typing.Any = torch.float16
 
@@ -17,8 +16,6 @@ class HyperParameters(object):
 
         device: Optional[str] = kwargs.pop('device', self.device)
         d_type: typing.Any = kwargs.pop('d_type', self.d_type)
-        model_name: Optional[str] = kwargs.pop('model_name', self.model_name)
-        provider: Optional[str] = kwargs.pop('provider', self.provider)
         show_details: Optional[bool] = kwargs.pop('show_details', True)
         permission_to_use_ram: Optional[bool] = kwargs.pop('permission_to_use_ram', True)
         permission_to_use_cpu: Optional[bool] = kwargs.pop('permission_to_use_cpu', True)
@@ -27,7 +24,7 @@ class HyperParameters(object):
         load_model: Optional[bool] = kwargs.pop('load_model', True)
         train_model: Optional[bool] = kwargs.pop('train_model', False)
         load_local: Optional[bool] = kwargs.pop('load_local', False)
-        directory: Optional[bool] = kwargs.pop('directory', None)
+        model_path: Optional[bool] = kwargs.pop('model_path', None)
         frozen_weight_use: Optional[bool] = kwargs.pop('frozen_weight_use', True)
         load_format: Optional[str] = kwargs.pop('load_format', '.bin')
 
@@ -49,4 +46,4 @@ class HyperParameters(object):
         self.__dict__['load_format'] = load_format
 
         self.__dict__['load_local'] = load_local
-        self.__dict__['directory'] = directory
+        self.__dict__['model_path'] = model_path
