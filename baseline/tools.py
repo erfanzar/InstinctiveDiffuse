@@ -1,9 +1,9 @@
+import copy
 import typing
 
 import erutils
 
 from modules.models import CGRModel
-import copy
 
 VERSIONS: typing.Optional[list[str]] = [
     'v2', 'v3', 'v4'
@@ -62,10 +62,30 @@ def check_prompt(prompt: typing.Optional[str]) -> typing.Union[str, None]:
         return None
 
 
+def v_to_prompt(prompt: typing.Union[str, typing.List[str]]):
+    if use_check_prompt:
+        prompt = check_prompt(prompt)
+    if prompt is not None:
+        if version in VERSIONS:
+
+            if use_version:
+                if version == VERSIONS[0]:
+                    prompt = using_v2(prompt)
+                elif version == VERSIONS[1]:
+                    prompt = using_v3(prompt)
+                elif version == VERSIONS[2]:
+                    prompt = using_v4(prompt)
+        if use_realistic:
+            prompt = using_realistic(prompt)
+    return prompt
+
+
 def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRModel],
-             use_version: typing.Optional[bool] = False, version: typing.Optional[str] = None,
-             use_realistic: typing.Optional[bool] = True, image_format: typing.Optional[str] = 'png',
-             use_check_prompt: typing.Optional[bool] = False, task: typing.Optional[str] = 'PIL'):
+             size: typing.Optional[typing.Tuple] = None,
+             use_version: typing.Optional[bool] = True, version: typing.Optional[str] = 'v4',
+             use_realistic: typing.Optional[bool] = False, image_format: typing.Optional[str] = 'png',
+             use_check_prompt:
+             typing.Optional[bool] = False, task: typing.Optional[str] = 'save'):
     if task == 'save' and image_format not in ALLOWED_SAVE_FORMATS:
         raise ValueError(
             f'stop execution of command cause provided format not available in formats : \n '
@@ -88,40 +108,37 @@ def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRMod
     if task not in TASKS:
         raise ValueError(f'specified task should be in list of tasks \n {TASKS}')
     org_p = copy.deepcopy(prompt)
-    if use_check_prompt:
-        prompt = check_prompt(prompt)
-    if prompt is not None:
-        if version in VERSIONS:
-            if version == VERSIONS[0]:
-                prompt = using_v2(prompt)
-            elif version == VERSIONS[1]:
-                prompt = using_v3(prompt)
-            elif version == VERSIONS[2]:
-                prompt = using_v4(prompt)
-        # 'PIL', 'dict', 'cv', 'np', 'save', 'check'
-        generated_sample = model(prompt=prompt)
-        if task == 'PIL':
-            return generated_sample.images[0]
-        elif task == 'dict':
-            return dict(
-                image=generated_sample.images[0],
-                content=generated_sample,
-                size=None,
-                nsfw=False,
-            )
-        elif task == 'cv':
-            return NotImplementedError
-        elif task == 'np':
-            return NotImplementedError
-        elif task == 'check':
-            return True
-        elif task == 'save':
-            try:
-                generated_sample.images[0].save(f'{org_p}.{image_format}')
-                return True
-            except Warning as w:
-                return False
-        else:
-            raise ValueError('selected task is going to be available in future')
+
+    size = (None, None) if size is None else size
+    if isinstance(prompt, str):
+        prompt = v_to_prompt(prompt)
+    elif isinstance(prompt, list):
+        prompt = [v_to_prompt(p) for p in prompt]
     else:
-        return None
+        raise ValueError('Wrong input for prompt input should be string or a list of strings')
+    print(f'PROMPT :  {prompt} | SIZE : {size}')
+
+    generated_sample = model(prompt=prompt, height=size[0], width=size[1])
+    if task == 'PIL':
+        return generated_sample.images[0]
+    elif task == 'dict':
+        return dict(
+            image=generated_sample.images[0],
+            content=generated_sample,
+            size=None,
+            nsfw=False,
+        )
+    elif task == 'cv':
+        return NotImplementedError
+    elif task == 'np':
+        return NotImplementedError
+    elif task == 'check':
+        return True
+    elif task == 'save':
+        try:
+            generated_sample.images[0].save(f'{org_p}.{image_format}')
+            return True
+        except Warning as w:
+            return False
+    else:
+        raise ValueError('selected task is going to be available in future')
