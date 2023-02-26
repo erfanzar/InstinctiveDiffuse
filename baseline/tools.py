@@ -21,6 +21,21 @@ TASKS: typing.Optional[list[str]] = [
     'PIL', 'dict', 'cv', 'np', 'save', 'check'
 ]
 
+# VERSIONS = [
+#     'v2', 'v3', 'v4'
+# ]
+# BLACK_WORDS_LIST = [
+#     'matin'
+# ]
+#
+# ALLOWED_SAVE_FORMATS = [
+#     'png', 'jpg'
+# ]
+#
+# TASKS = [
+#     'PIL', 'dict', 'cv', 'np', 'save', 'check'
+# ]
+
 
 def using_v4(prompt: typing.Optional[str]) -> typing.Optional[str]:
     prompt += ', mdjrny-v4 style'

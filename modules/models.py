@@ -590,6 +590,7 @@ class CGRModel(PipeLine):
             if not nsfw_allowed:
                 image, has_nsfw_concept = self.run_safety_checker(image, device, prompt_embeds.dtype)
 
+        has_nsfw_concept = False
         # Offload last model to CPU
         if hasattr(self, "final_offload_hook") and self.final_offload_hook is not None:
             self.final_offload_hook.offload()
