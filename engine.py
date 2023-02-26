@@ -3,9 +3,15 @@ from typing import Union, List, Optional
 import numpy as np
 
 import torch
-
+import argparse
 from baseline import generate
 from modules.models import CGRModel
+
+pars = argparse.ArgumentParser()
+
+pars.add_argument('--model-path', '--model-path', default=r'E:\CGRModel-checkpoints', type=str)
+
+opt = pars.parse_args()
 
 
 def main(model_path: Union[str, os.PathLike], prompts: Union[str, List[str]],
@@ -39,7 +45,7 @@ def main(model_path: Union[str, os.PathLike], prompts: Union[str, List[str]],
 
 
 if __name__ == "__main__":
-    main(model_path=r'E:\CGRModel-checkpoints',
+    main(model_path=r'{}'.format(opt.model_path),
          prompts=['welcome to CreativeGan', 'welcomed and beautiful happy woman face,detailed,sharp',
                   'an astronaut riding a horse ,detailed,sharp',
                   'beautiful stars in the galaxy space ,detailed,detailed',
