@@ -2,6 +2,7 @@ import copy
 import typing
 
 import erutils
+import erutils.lightning
 
 from modules.models import CGRModel
 
@@ -62,7 +63,7 @@ def check_prompt(prompt: typing.Optional[str]) -> typing.Union[str, None]:
         return None
 
 
-def v_to_prompt(prompt: typing.Union[str, typing.List[str]]):
+def v_to_prompt(prompt: typing.Union[str, typing.List[str]], use_check_prompt, use_version, version, use_realistic):
     if use_check_prompt:
         prompt = check_prompt(prompt)
     if prompt is not None:
@@ -111,9 +112,11 @@ def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRMod
 
     size = (None, None) if size is None else size
     if isinstance(prompt, str):
-        prompt = v_to_prompt(prompt)
+        prompt = v_to_prompt(prompt, use_realistic=use_realistic, use_version=use_version, version=version,
+                             use_check_prompt=use_check_prompt)
     elif isinstance(prompt, list):
-        prompt = [v_to_prompt(p) for p in prompt]
+        prompt = [v_to_prompt(p, use_realistic=use_realistic, use_version=use_version, version=version,
+                              use_check_prompt=use_check_prompt) for p in prompt]
     else:
         raise ValueError('Wrong input for prompt input should be string or a list of strings')
     print(f'PROMPT :  {prompt} | SIZE : {size}')
@@ -123,7 +126,7 @@ def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRMod
         return generated_sample.images[0]
     elif task == 'dict':
         return dict(
-            image=generated_sample.images[0],
+            image=generated_sample.images,
             content=generated_sample,
             size=None,
             nsfw=False,
@@ -136,9 +139,12 @@ def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRMod
         return True
     elif task == 'save':
         try:
-            generated_sample.images[0].save(f'{org_p}.{image_format}')
+            print(generated_sample)
+            for v in range(len(generated_sample.images)):
+                generated_sample.images[v].save(f'{org_p[v]}.{image_format}')
             return True
         except Warning as w:
+            erutils.fprint(w)
             return False
     else:
         raise ValueError('selected task is going to be available in future')

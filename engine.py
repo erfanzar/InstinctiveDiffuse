@@ -14,4 +14,5 @@ def main(model_path: Union[str, os.PathLike], prompts: Union[str, List[str]]):
 
 
 if __name__ == "__main__":
-    main(model_path=r'E:\CGRModel-checkpoints', prompts=['welcome to CreativeGan'])
+    main(model_path=r'E:\CGRModel-checkpoints',
+         prompts=['welcome to CreativeGan', 'welcomed and beautiful happy face,detailed,sharp'])
