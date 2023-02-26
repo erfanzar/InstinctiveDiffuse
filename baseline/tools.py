@@ -12,6 +12,7 @@ VERSIONS: typing.Optional[list[str]] = [
 BLACK_WORDS_LIST: typing.Optional[list[str]] = [
     'matin'
 ]
+MAXIMUM_RES = 880
 
 ALLOWED_SAVE_FORMATS: typing.Optional[list[str]] = [
     'png', 'jpg'
@@ -20,6 +21,7 @@ ALLOWED_SAVE_FORMATS: typing.Optional[list[str]] = [
 TASKS: typing.Optional[list[str]] = [
     'PIL', 'dict', 'cv', 'np', 'save', 'check'
 ]
+
 
 # VERSIONS = [
 #     'v2', 'v3', 'v4'
