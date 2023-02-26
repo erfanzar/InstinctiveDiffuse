@@ -45,8 +45,7 @@ I always wanted to see what if an astronaut could ride a horse so let see
 
 <div>
 <hr>
-<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/README-an%20astronaut%20riding%20a%20horse.png'>
-'/>
+<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/README-an%20astronaut%20riding%20a%20horse.png'/>
 
 
 </div>
@@ -59,8 +58,7 @@ so let see what is deep space in galaxy looking like
 
 <div>
 <hr>
-<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/README-beautiful%20stars%20in%20galaxy%20space.png'>
-'/>
+<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/README-beautiful%20stars%20in%20galaxy%20space.png'/>
 
 
 </div>
