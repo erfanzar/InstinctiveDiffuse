@@ -7,6 +7,8 @@ from baseline import generate
 from modules.models import CGRModel
 
 
+
+
 def main(model_path: Union[str, os.PathLike], prompts: Union[str, List[str]]):
     model = CGRModel.from_pretrained(model_path, torch_dtype=torch.float32)
     # model.to('cuda')

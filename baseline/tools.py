@@ -140,8 +140,12 @@ def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRMod
     elif task == 'save':
         try:
             print(generated_sample)
-            for v in range(len(generated_sample.images)):
-                generated_sample.images[v].save(f'{org_p[v]}.{image_format}')
+            if isinstance(org_p, list):
+                for v in range(len(generated_sample.images)):
+                    generated_sample.images[v].save(f'{org_p[v]}.{image_format}')
+            elif isinstance(org_p, str):
+                for v in range(len(generated_sample.images)):
+                    generated_sample.images[v].save(f'{org_p}.{image_format}')
             return True
         except Warning as w:
             erutils.fprint(w)
