@@ -577,8 +577,8 @@ class CGRModel(PipeLine):
             image = self.decode_latents(latents)
 
             # 9. Run safety checker
-
-            image, has_nsfw_concept = self.run_safety_checker(image, device, prompt_embeds.dtype)
+            if not nsfw_allowed:
+                image, has_nsfw_concept = self.run_safety_checker(image, device, prompt_embeds.dtype)
 
             # 10. Convert to PIL
             image = self.numpy_to_pil(image)
@@ -587,8 +587,8 @@ class CGRModel(PipeLine):
             image = self.decode_latents(latents)
 
             # 9. Run safety checker
-
-            image, has_nsfw_concept = self.run_safety_checker(image, device, prompt_embeds.dtype)
+            if not nsfw_allowed:
+                image, has_nsfw_concept = self.run_safety_checker(image, device, prompt_embeds.dtype)
 
         # Offload last model to CPU
         if hasattr(self, "final_offload_hook") and self.final_offload_hook is not None:
