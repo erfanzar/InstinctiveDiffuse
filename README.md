@@ -32,8 +32,7 @@ so seems like im good at giving you welcome and greeting's but let focus on some
 
 <div>
 <hr>
-<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/README-portrait%20of%20female%20draconian,%20intricate,%20elegant.png
-'/>
+<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/README-portrait%20of%20female%20draconian,%20intricate,%20elegant.png'/>
 
 
 </div>
