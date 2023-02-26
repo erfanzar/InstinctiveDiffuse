@@ -7,12 +7,12 @@ image of that and you also can specify which version you want to see your image 
 
 Oh hello there im CreativeGAN
 an AI tool that can turn your words into picture
-and I can sure you that I can do thing that you will fall in love with
+and I can ensure you that I can do thing that you will fall in love with
 
 for the start let me show you an image
 
 but wait a bit before we begin I do like to tell you where my power comes from
-a person who called erfan got an idea to fine tune and change a bit of open-journey
+a person who called erfan got an idea to fine tune and change a bit of journey
 AI algo and customize that and yea so I have to tell you im here after training in erfan gym only for 1 week for
 8 epochs and 56000 steps and im here BTW let get start
 
