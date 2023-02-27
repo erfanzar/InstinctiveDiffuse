@@ -11,7 +11,7 @@ from PIL import Image
 from diffusers.utils import logging, deprecate, is_transformers_available
 from packaging import version
 from tqdm import tqdm
-from transformers import PreTrainedModel
+from transformers import PTModel
 
 from .pipeline_utils import FrozenDict
 
@@ -27,7 +27,7 @@ LOADABLE_CLASSES: Optional[Dict] = {
     "transformers": {
         "PreTrainedTokenizer": ["save_pretrained", "from_pretrained"],
         "PreTrainedTokenizerFast": ["save_pretrained", "from_pretrained"],
-        "PreTrainedModel": ["save_pretrained", "from_pretrained"],
+        "PTModel": ["save_pretrained", "from_pretrained"],
         "FeatureExtractionMixin": ["save_pretrained", "from_pretrained"],
         "ProcessorMixin": ["save_pretrained", "from_pretrained"],
         "ImageProcessingMixin": ["save_pretrained", "from_pretrained"],
@@ -730,7 +730,7 @@ class PipeLine(ConfigMixin):
 
                 is_transformers_model = (
                         is_transformers_available()
-                        and issubclass(class_obj, PreTrainedModel)
+                        and issubclass(class_obj, PTModel)
                         and transformers_version >= version.parse("4.20.0")
                 )
 

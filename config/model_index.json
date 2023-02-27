@@ -2,24 +2,24 @@
   "_class_name": "GCRModel",
   "_diffusers_version": "0.7.2",
   "feature_extractor": [
-    "transformers",
-    "CLIPFeatureExtractor"
+    "modules.modules",
+    "CFExtractor"
   ],
   "safety_checker": [
     "stable_diffusion",
     "StableDiffusionSafetyChecker"
   ],
   "scheduler": [
-    "diffusers",
+    "modules.modules",
     "PNDMScheduler"
   ],
   "text_encoder": [
-    "transformers",
-    "CLIPTextModel"
+    "modules.modules",
+    "CTextModel"
   ],
   "tokenizer": [
-    "transformers",
-    "CLIPTokenizer"
+    "modules.modules",
+    "CATokenizer"
   ],
   "unet": [
     "diffusers",

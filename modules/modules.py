@@ -1,18 +1,66 @@
+import inspect
+import itertools
 import json
 import os
+import re
+import shutil
 import typing
 from abc import ABC
 from collections import UserDict, OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
+from distutils import dist
 from enum import Enum
+from functools import partial
 from typing import Optional, Union, List, Tuple, Dict, Any, Callable, NamedTuple, overload
-
+import copy
 import PIL
 import numpy as np
 import torch
 import torch.nn.functional as F
+from accelerate import init_empty_weights
+from accelerate.utils import save_offload_index
+from huggingface_hub import CommitOperationAdd
 from torch import Tensor
 from torch import nn as nn
+from transformers import requires_backends, is_tf_available, is_torch_available, is_flax_available, \
+    is_safetensors_available, __version__, resize, MODEL_FOR_CAUSAL_LM_MAPPING, MODEL_FOR_CAUSAL_IMAGE_MODELING_MAPPING, \
+    MODEL_FOR_VISION_2_SEQ_MAPPING, MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING, MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING, \
+    BeamSearchScorer, CLIPModel, ConstraintListState, MaxLengthCriteria, TopPLogitsWarper, \
+    RepetitionPenaltyLogitsProcessor, NoRepeatNGramLogitsProcessor, ForcedEOSTokenLogitsProcessor, \
+    InfNanRemoveLogitsProcessor, ForcedBOSTokenLogitsProcessor, BasicTokenizer
+from transformers.deepspeed import is_deepspeed_zero3_enabled, deepspeed_config
+from transformers.generation import validate_stopping_criteria, BeamHypotheses, MaxNewTokensCriteria, \
+    ExponentialDecayLengthPenalty, LogitNormalization
+from transformers.generation.logits_process import SuppressTokensAtBeginLogitsProcessor, ForceTokensLogitsProcessor
+from transformers.image_processing_utils import get_size_dict
+from transformers.image_transforms import normalize, get_resize_output_image_size
+from transformers.modeling_utils import get_balanced_memory, get_state_dict_dtype, get_parameter_device, \
+    _load_state_dict_into_meta_model, _load_state_dict_into_model
+from transformers.models.clip.modeling_clip import CLIPVisionEmbeddings, CLIPAttention, CLIPTextEmbeddings, CLIPMLP, \
+    CLIPTextModelWithProjection, CLIPVisionModelWithProjection, CLIPEncoder, CLIPVisionTransformer
+from transformers.models.clip.tokenization_clip import get_pairs, bytes_to_unicode, whitespace_clean
+from transformers.pytorch_utils import torch_int_div
+from transformers.tokenization_utils import _insert_one_token_to_ordered_list, Trie, ADDED_TOKENS_FILE, \
+    SPECIAL_TOKENS_MAP_FILE, TOKENIZER_CONFIG_FILE
+from transformers.tokenization_utils_base import FULL_TOKENIZER_FILE, get_fast_tokenizer_file, LARGE_INTEGER
+from transformers.utils import is_torch_device, is_remote_url, is_offline_mode, to_py_obj, is_tf_tensor, \
+    is_torch_tensor, is_jax_tensor, is_numpy_array, GENERATION_CONFIG_NAME, download_url, cached_file, TF_WEIGHTS_NAME, \
+    is_tensor, WEIGHTS_NAME, is_accelerate_available, is_bitsandbytes_available, extract_commit_hash
+
+WEIGHTS_NAME = "pytorch_model.bin"
+WEIGHTS_INDEX_NAME = "pytorch_model.bin.index.json"
+TF2_WEIGHTS_NAME = "tf_model.h5"
+TF2_WEIGHTS_INDEX_NAME = "tf_model.h5.index.json"
+TF_WEIGHTS_NAME = "model.ckpt"
+FLAX_WEIGHTS_NAME = "flax_model.msgpack"
+FLAX_WEIGHTS_INDEX_NAME = "flax_model.msgpack.index.json"
+SAFE_WEIGHTS_NAME = "model.safetensors"
+SAFE_WEIGHTS_INDEX_NAME = "model.safetensors.index.json"
+CONFIG_NAME = "config.json"
+FEATURE_EXTRACTOR_NAME = "preprocessor_config.json"
+IMAGE_PROCESSOR_NAME = FEATURE_EXTRACTOR_NAME
+GENERATION_CONFIG_NAME = "generation_config.json"
+MODEL_CARD_NAME = "modelcard.json"
 
 PILImageResampling = PIL.Image
 
@@ -65,7 +113,6 @@ TextInputPair = Tuple[str, str]
 PreTokenizedInputPair = Tuple[List[str], List[str]]
 EncodedInputPair = Tuple[List[int], List[int]]
 
-
 # SPECIAL_TOKENS_MAP_FILE = "special_tokens_map.json"
 # ADDED_TOKENS_FILE = "added_tokens.json"
 # TOKENIZER_CONFIG_FILE = "tokenizer_config.json"
@@ -73,6 +120,8 @@ EncodedInputPair = Tuple[List[int], List[int]]
 # FULL_TOKENIZER_FILE = "tokenizer.json"
 
 VOCAB_FILES_NAMES = {"vocab_file": "sentencepiece.bpe.model"}
+
+
 class TokenSpan(NamedTuple):
     start: int
     end: int
@@ -176,11 +225,7 @@ class BatchEncoding(UserDict):
                 "words() is not available when using non-fast tokenizers (e.g. instance of a `XxxTokenizerFast`"
                 " class)."
             )
-        warnings.warn(
-            "`BatchEncoding.words()` property is deprecated and should be replaced with the identical, "
-            "but more self-explanatory `BatchEncoding.word_ids()` property.",
-            FutureWarning,
-        )
+
         return self.word_ids(batch_index)
 
     def word_ids(self, batch_index: int = 0) -> List[Optional[int]]:
@@ -1139,8 +1184,6 @@ class UNetC(nn.Module):
         return self.m(x)
 
 
-
-
 factors = [1, 1, 1, 1, 1 / 2, 1 / 4, 1 / 8, 1 / 16, 1 / 32]
 
 
@@ -1379,118 +1422,12 @@ class OutConv(nn.Module):
 
 class PushToHubMixin:
 
-    def _create_repo(
-            self,
-            repo_id: str,
-            private: Optional[bool] = None,
-            use_auth_token: Optional[Union[bool, str]] = None,
-            repo_url: Optional[str] = None,
-            organization: Optional[str] = None,
-    ):
-        """
-        Create the repo if needed, cleans up repo_id with deprecated kwards `repo_url` and `organization`, retrives the
-        token.
-        """
-        if repo_url is not None:
-            repo_id = repo_url.replace(f"{HUGGINGFACE_CO_RESOLVE_ENDPOINT}/", "")
-        if organization is not None:
-
-            if not repo_id.startswith(organization):
-                if "/" in repo_id:
-                    repo_id = repo_id.split("/")[-1]
-                repo_id = f"{organization}/{repo_id}"
-
-        token = HfFolder.get_token() if use_auth_token is True else use_auth_token
-        url = create_repo(repo_id=repo_id, token=token, private=private, exist_ok=True)
-
-        # If the namespace is not there, add it or `upload_file` will complain
-        if "/" not in repo_id and url != f"{HUGGINGFACE_CO_RESOLVE_ENDPOINT}/{repo_id}":
-            repo_id = get_full_repo_name(repo_id, token=token)
-        return repo_id, token
-
     def _get_files_timestamps(self, working_dir: Union[str, os.PathLike]):
         """
         Returns the list of files with their last modification timestamp.
         """
         return {f: os.path.getmtime(os.path.join(working_dir, f)) for f in os.listdir(working_dir)}
 
-    def _upload_modified_files(
-            self,
-            working_dir: Union[str, os.PathLike],
-            repo_id: str,
-            files_timestamps: Dict[str, float],
-            commit_message: Optional[str] = None,
-            token: Optional[str] = None,
-            create_pr: bool = False,
-    ):
-        """
-        Uploads all modified files in `working_dir` to `repo_id`, based on `files_timestamps`.
-        """
-        if commit_message is None:
-            if "Model" in self.__class__.__name__:
-                commit_message = "Upload model"
-            elif "Config" in self.__class__.__name__:
-                commit_message = "Upload config"
-            elif "Tokenizer" in self.__class__.__name__:
-                commit_message = "Upload tokenizer"
-            elif "FeatureExtractor" in self.__class__.__name__:
-                commit_message = "Upload feature extractor"
-            elif "Processor" in self.__class__.__name__:
-                commit_message = "Upload processor"
-            else:
-                commit_message = f"Upload {self.__class__.__name__}"
-        modified_files = [
-            f
-            for f in os.listdir(working_dir)
-            if f not in files_timestamps or os.path.getmtime(os.path.join(working_dir, f)) > files_timestamps[f]
-        ]
-        operations = []
-        for file in modified_files:
-            operations.append(CommitOperationAdd(path_or_fileobj=os.path.join(working_dir, file), path_in_repo=file))
-
-        return create_commit(
-            repo_id=repo_id, operations=operations, commit_message=commit_message, token=token, create_pr=create_pr
-        )
-
-    def push_to_hub(
-            self,
-            repo_id: str,
-            use_temp_dir: Optional[bool] = None,
-            commit_message: Optional[str] = None,
-            private: Optional[bool] = None,
-            use_auth_token: Optional[Union[bool, str]] = None,
-            max_shard_size: Optional[Union[int, str]] = "10GB",
-            create_pr: bool = False,
-            **deprecated_kwargs
-    ) -> str:
-
-        if "repo_path_or_name" in deprecated_kwargs:
-            repo_id = deprecated_kwargs.pop("repo_path_or_name")
-
-        repo_url = deprecated_kwargs.pop("repo_url", None)
-        organization = deprecated_kwargs.pop("organization", None)
-
-        if os.path.isdir(repo_id):
-            working_dir = repo_id
-            repo_id = repo_id.split(os.path.sep)[-1]
-        else:
-            working_dir = repo_id.split("/")[-1]
-
-        repo_id, token = self._create_repo(
-            repo_id, private=private, use_auth_token=use_auth_token, repo_url=repo_url, organization=organization
-        )
-
-        if use_temp_dir is None:
-            use_temp_dir = not os.path.isdir(working_dir)
-
-        with working_or_temp_dir(working_dir=working_dir, use_temp_dir=use_temp_dir) as work_dir:
-            files_timestamps = self._get_files_timestamps(work_dir)
-
-            # Save all files.
-
-            return self._upload_modified_files(
-                work_dir, repo_id, files_timestamps, commit_message=commit_message, token=token, create_pr=create_pr
-            )
 
 
 class PTConfig(PushToHubMixin):
@@ -1540,18 +1477,11 @@ class CLIPVisionConfig(PTConfig):
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs) -> "PretrainedConfig":
-
         config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
 
-        # get the vision config dict if we are loading from CLIPConfig
+        # get the vision config dict if we are loading from CConfigs
         if config_dict.get("model_type") == "clip":
             config_dict = config_dict["vision_config"]
-
-        if "model_type" in config_dict and hasattr(cls, "model_type") and config_dict["model_type"] != cls.model_type:
-            logger.warning(
-                f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
-                f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
-            )
 
         return cls.from_dict(config_dict, **kwargs)
 
@@ -1639,7 +1569,6 @@ class GenerationConfig(PushToHubMixin):
             self,
             save_directory: Union[str, os.PathLike],
             config_file_name: Optional[Union[str, os.PathLike]] = None,
-            push_to_hub: bool = False,
             **kwargs
     ):
 
@@ -1650,16 +1579,9 @@ class GenerationConfig(PushToHubMixin):
 
         os.makedirs(save_directory, exist_ok=True)
 
-        if push_to_hub:
-            commit_message = kwargs.pop("commit_message", None)
-            repo_id = kwargs.pop("repo_id", save_directory.split(os.path.sep)[-1])
-            repo_id, token = self._create_repo(repo_id, **kwargs)
-            files_timestamps = self._get_files_timestamps(save_directory)
-
         output_config_file = os.path.join(save_directory, config_file_name)
 
         self.to_json_file(output_config_file, use_diff=True)
-        logger.info(f"Configuration saved in {output_config_file}")
 
     @classmethod
     def from_pretrained(
@@ -1739,11 +1661,6 @@ class GenerationConfig(PushToHubMixin):
                 f"It looks like the config file at '{resolved_config_file}' is not a valid JSON file."
             )
 
-        if is_local:
-            logger.info(f"loading configuration file {resolved_config_file}")
-        else:
-            logger.info(f"loading configuration file {configuration_file} from cache at {resolved_config_file}")
-
         return cls.from_dict(config_dict, **kwargs)
 
     @classmethod
@@ -1767,7 +1684,6 @@ class GenerationConfig(PushToHubMixin):
         config = cls(**config_dict)
         unused_kwargs = config.update(**kwargs)
 
-        logger.info(f"Generate config {config}")
         if return_unused_kwargs:
             return config, unused_kwargs
         else:
@@ -2166,26 +2082,19 @@ class BatchFeature(UserDict):
 
         return self
 
-    def to(self, *args, **kwargs) -> "BatchFeature":
+    def to(self, *args, **kwargs):
 
         requires_backends(self, ["torch"])
-        import torch  # noqa
 
         new_data = {}
         device = kwargs.get("device")
-        # Check if the args are a device or a dtype
-        if device is None and len(args) > 0:
-            # device should be always the first argument
-            arg = args[0]
-            if is_torch_dtype(arg):
 
-                pass
-            elif isinstance(arg, str) or is_torch_device(arg) or isinstance(arg, int):
+        if device is None and len(args) > 0:
+            arg = args[0]
+            if isinstance(arg, str) or is_torch_device(arg) or isinstance(arg, int):
                 device = arg
             else:
-
                 raise ValueError(f"Attempting to cast a BatchFeature to type {str(arg)}. This is not supported.")
-
         for k, v in self.items():
             # check if v is a floating point
             if torch.is_floating_point(v):
@@ -2375,9 +2284,13 @@ class CLIPImageProcessor(BaseImageProcessor):
         return BatchFeature(data=data, tensor_type=return_tensors)
 
 
-class CLIPFeatureExtractor(CLIPImageProcessor):
+class CFExtractor(CLIPImageProcessor):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+
+
+class EpsilonLogitsWarper:
+    pass
 
 
 class GenerationMixin:
@@ -2453,7 +2366,7 @@ class GenerationMixin:
 
     def adjust_logits_during_generation(self, logits: torch.FloatTensor, **kwargs) -> torch.FloatTensor:
         """
-        Implement in subclasses of [`PreTrainedModel`] for custom behavior to adjust the logits in the generate method.
+        Implement in subclasses of [`PTModel`] for custom behavior to adjust the logits in the generate method.
         """
         return logits
 
@@ -3754,11 +3667,6 @@ class GenerationMixin:
         logits_processor = logits_processor if logits_processor is not None else LogitsProcessorList()
         stopping_criteria = stopping_criteria if stopping_criteria is not None else StoppingCriteriaList()
         if max_length is not None:
-            warnings.warn(
-                "`max_length` is deprecated in this function, use"
-                " `stopping_criteria=StoppingCriteriaList(MaxLengthCriteria(max_length=max_length))` instead.",
-                UserWarning,
-            )
             stopping_criteria = validate_stopping_criteria(stopping_criteria, max_length)
         logits_warper = logits_warper if logits_warper is not None else LogitsProcessorList()
         pad_token_id = pad_token_id if pad_token_id is not None else self.generation_config.pad_token_id
@@ -3913,14 +3821,8 @@ class GenerationMixin:
         logits_processor = logits_processor if logits_processor is not None else LogitsProcessorList()
         stopping_criteria = stopping_criteria if stopping_criteria is not None else StoppingCriteriaList()
         if max_length is not None:
-            warnings.warn(
-                "`max_length` is deprecated in this function, use"
-                " `stopping_criteria=StoppingCriteriaList(MaxLengthCriteria(max_length=max_length))` instead.",
-                UserWarning,
-            )
             stopping_criteria = validate_stopping_criteria(stopping_criteria, max_length)
-        if len(stopping_criteria) == 0:
-            warnings.warn("You don't have defined any stopping_criteria, this will likely loop forever", UserWarning)
+
         pad_token_id = pad_token_id if pad_token_id is not None else self.generation_config.pad_token_id
         eos_token_id = eos_token_id if eos_token_id is not None else self.generation_config.eos_token_id
         if isinstance(eos_token_id, int):
@@ -4129,11 +4031,6 @@ class GenerationMixin:
         logits_processor = logits_processor if logits_processor is not None else LogitsProcessorList()
         stopping_criteria = stopping_criteria if stopping_criteria is not None else StoppingCriteriaList()
         if max_length is not None:
-            warnings.warn(
-                "`max_length` is deprecated in this function, use"
-                " `stopping_criteria=StoppingCriteriaList(MaxLengthCriteria(max_length=max_length))` instead.",
-                UserWarning,
-            )
             stopping_criteria = validate_stopping_criteria(stopping_criteria, max_length)
         pad_token_id = pad_token_id if pad_token_id is not None else self.generation_config.pad_token_id
         eos_token_id = eos_token_id if eos_token_id is not None else self.generation_config.eos_token_id
@@ -4452,11 +4349,6 @@ class GenerationMixin:
         logits_processor = logits_processor if logits_processor is not None else LogitsProcessorList()
         stopping_criteria = stopping_criteria if stopping_criteria is not None else StoppingCriteriaList()
         if max_length is not None:
-            warnings.warn(
-                "`max_length` is deprecated in this function, use"
-                " `stopping_criteria=StoppingCriteriaList(MaxLengthCriteria(max_length=max_length))` instead.",
-                UserWarning,
-            )
             stopping_criteria = validate_stopping_criteria(stopping_criteria, max_length)
         pad_token_id = pad_token_id if pad_token_id is not None else self.generation_config.pad_token_id
         eos_token_id = eos_token_id if eos_token_id is not None else self.generation_config.eos_token_id
@@ -4833,14 +4725,8 @@ class GenerationMixin:
         logits_processor = logits_processor if logits_processor is not None else LogitsProcessorList()
         stopping_criteria = stopping_criteria if stopping_criteria is not None else StoppingCriteriaList()
         if max_length is not None:
-            warnings.warn(
-                "`max_length` is deprecated in this function, use"
-                " `stopping_criteria=StoppingCriteriaList(MaxLengthCriteria(max_length=max_length))` instead.",
-                UserWarning,
-            )
             stopping_criteria = validate_stopping_criteria(stopping_criteria, max_length)
-        if len(stopping_criteria) == 0:
-            warnings.warn("You don't have defined any stopping_criteria, this will likely loop forever", UserWarning)
+
         pad_token_id = pad_token_id if pad_token_id is not None else self.generation_config.pad_token_id
         eos_token_id = eos_token_id if eos_token_id is not None else self.generation_config.eos_token_id
         if isinstance(eos_token_id, int):
@@ -5249,14 +5135,14 @@ class CLIPTextConfig(PTConfig):
     def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs) -> "PTConfig":
         config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
 
-        # get the text config dict if we are loading from CLIPConfig
+        # get the text config dict if we are loading from CConfigs
         if config_dict.get("model_type") == "clip":
             config_dict = config_dict["text_config"]
 
         return cls.from_dict(config_dict, **kwargs)
 
 
-class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMixin):
+class PTModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMixin):
     config_class = None
     base_model_prefix = ""
     main_input_name = "input_ids"
@@ -6746,18 +6632,12 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             self.id2label = {i: f"LABEL_{i}" for i in range(num_labels)}
             self.label2id = dict(zip(self.id2label.values(), self.id2label.keys()))
 
-    def save_pretrained(self, save_directory: Union[str, os.PathLike], push_to_hub: bool = False, **kwargs):
+    def save_pretrained(self, save_directory: Union[str, os.PathLike], **kwargs):
 
         if os.path.isfile(save_directory):
             raise AssertionError(f"Provided path ({save_directory}) should be a directory, not a file")
 
         os.makedirs(save_directory, exist_ok=True)
-
-        if push_to_hub:
-            commit_message = kwargs.pop("commit_message", None)
-            repo_id = kwargs.pop("repo_id", save_directory.split(os.path.sep)[-1])
-            repo_id, token = self._create_repo(repo_id, **kwargs)
-            files_timestamps = self._get_files_timestamps(save_directory)
 
         if self._auto_class is not None:
             custom_object_save(self, save_directory, config=self)
@@ -6766,11 +6646,6 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         output_config_file = os.path.join(save_directory, CONFIG_NAME)
 
         self.to_json_file(output_config_file, use_diff=True)
-
-        if push_to_hub:
-            self._upload_modified_files(
-                save_directory, repo_id, files_timestamps, commit_message=commit_message, token=token
-            )
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs) -> "PTConfig":
@@ -7025,7 +6900,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         cls._auto_class = auto_class
 
 
-class CLIPConfig(PTConfig):
+class CConfigs(PTConfig):
     model_type = "clip"
     is_composition = True
 
@@ -7068,8 +6943,8 @@ class CLIPConfig(PTConfig):
         return output
 
 
-class CLIPPreTrainedModel(PreTrainedModel, ABC):
-    config_class = CLIPConfig
+class CLIPPreTrainedModel(PTModel, ABC):
+    config_class = CConfigs
     base_model_prefix = "clip"
     supports_gradient_checkpointing = True
     _keys_to_ignore_on_load_missing = [r"position_ids"]
@@ -7132,7 +7007,7 @@ class CLIPPreTrainedModel(PreTrainedModel, ABC):
             module.gradient_checkpointing = value
 
 
-class CLIPTextModel(CLIPPreTrainedModel, ABC):
+class CTextModel(CLIPPreTrainedModel, ABC):
     config_class = CLIPTextConfig
 
     _no_split_modules = ["CLIPEncoderLayer"]
@@ -7682,11 +7557,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
                     f"Calling {cls.__name__}.from_pretrained() with the path to a single file or url is not "
                     "supported for this tokenizer. Use a model identifier or the path to a directory instead."
                 )
-            warnings.warn(
-                f"Calling {cls.__name__}.from_pretrained() with the path to a single file or url is deprecated and "
-                "won't be possible anymore in v5. Use a model identifier or the path to a directory instead.",
-                FutureWarning,
-            )
+
             file_id = list(cls.vocab_files_names.keys())[0]
 
             vocab_files[file_id] = pretrained_model_name_or_path
@@ -7963,7 +7834,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
             save_directory: Union[str, os.PathLike],
             legacy_format: Optional[bool] = None,
             filename_prefix: Optional[str] = None,
-            push_to_hub: bool = False,
+
             **kwargs,
     ) -> Tuple[str]:
 
@@ -7971,12 +7842,6 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
             return
 
         os.makedirs(save_directory, exist_ok=True)
-
-        if push_to_hub:
-            commit_message = kwargs.pop("commit_message", None)
-            repo_id = kwargs.pop("repo_id", save_directory.split(os.path.sep)[-1])
-            repo_id, token = self._create_repo(repo_id, **kwargs)
-            files_timestamps = self._get_files_timestamps(save_directory)
 
         special_tokens_map_file = os.path.join(
             save_directory, (filename_prefix + "-" if filename_prefix else "") + SPECIAL_TOKENS_MAP_FILE
@@ -8049,11 +7914,6 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
             legacy_format=legacy_format,
             filename_prefix=filename_prefix,
         )
-
-        if push_to_hub:
-            self._upload_modified_files(
-                save_directory, repo_id, files_timestamps, commit_message=commit_message, token=token
-            )
 
         return save_files
 
@@ -8191,31 +8051,14 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
 
         # Get padding strategy
         if padding is False and old_pad_to_max_length:
-            if verbose:
-                warnings.warn(
-                    "The `pad_to_max_length` argument is deprecated and will be removed in a future version, "
-                    "use `padding=True` or `padding='longest'` to pad to the longest sequence in the batch, or "
-                    "use `padding='max_length'` to pad to a max length. In this case, you can give a specific "
-                    "length with `max_length` (e.g. `max_length=45`) or leave max_length to None to pad to the "
-                    "maximal input size of the model (e.g. 512 for Bert).",
-                    FutureWarning,
-                )
+
             if max_length is None:
                 padding_strategy = PaddingStrategy.LONGEST
             else:
                 padding_strategy = PaddingStrategy.MAX_LENGTH
         elif padding is not False:
             if padding is True:
-                if verbose:
-                    if max_length is not None and (
-                            truncation is None or truncation is False or truncation == "do_not_truncate"
-                    ):
-                        warnings.warn(
-                            "`max_length` is ignored when `padding`=`True` and there is no truncation strategy. "
-                            "To pad to max length, use `padding='max_length'`."
-                        )
-                    if old_pad_to_max_length is not False:
-                        warnings.warn("Though `pad_to_max_length` = `True`, it is ignored because `padding`=`True`.")
+
                 padding_strategy = PaddingStrategy.LONGEST  # Default to pad to the longest sequence in the batch
             elif not isinstance(padding, PaddingStrategy):
                 padding_strategy = PaddingStrategy(padding)
@@ -8227,17 +8070,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
         # Get truncation strategy
         if truncation is None and old_truncation_strategy != "do_not_truncate":
             if verbose:
-                warnings.warn(
-                    "The `truncation_strategy` argument is deprecated and will be removed in a future version, use"
-                    " `truncation=True` to truncate examples to a max length. You can give a specific length with"
-                    " `max_length` (e.g. `max_length=45`) or leave max_length to None to truncate to the maximal input"
-                    " size of the model (e.g. 512 for Bert).  If you have pairs of inputs, you can give a specific"
-                    " truncation strategy selected among `truncation='only_first'` (will only truncate the first"
-                    " sentence in the pairs) `truncation='only_second'` (will only truncate the second sentence in the"
-                    " pairs) or `truncation='longest_first'` (will iteratively remove tokens from the longest sentence"
-                    " in the pairs).",
-                    FutureWarning,
-                )
+
             truncation_strategy = TruncationStrategy(old_truncation_strategy)
         elif truncation is not False and truncation is not None:
             if truncation is True:
@@ -8705,71 +8538,14 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
             return_tensors: Optional[Union[str, TensorType]] = None,
             verbose: bool = True,
     ) -> BatchEncoding:
-        """
-        Pad a single encoded input or a batch of encoded inputs up to predefined length or to the max sequence length
-        in the batch.
 
-        Padding side (left/right) padding token ids are defined at the tokenizer level (with `self.padding_side`,
-        `self.pad_token_id` and `self.pad_token_type_id`).
-
-        Please note that with a fast tokenizer, using the `__call__` method is faster than using a method to encode the
-        text followed by a call to the `pad` method to get a padded encoding.
-
-        <Tip>
-
-        If the `encoded_inputs` passed are dictionary of numpy arrays, PyTorch tensors or TensorFlow tensors, the
-        result will use the same type unless you provide a different tensor type with `return_tensors`. In the case of
-        PyTorch tensors, you will lose the specific device of your tensors however.
-
-        </Tip>
-
-        Args:
-            encoded_inputs ([`BatchEncoding`], list of [`BatchEncoding`], `Dict[str, List[int]]`, `Dict[str, List[List[int]]` or `List[Dict[str, List[int]]]`):
-                Tokenized inputs. Can represent one input ([`BatchEncoding`] or `Dict[str, List[int]]`) or a batch of
-                tokenized inputs (list of [`BatchEncoding`], *Dict[str, List[List[int]]]* or *List[Dict[str,
-                List[int]]]*) so you can use this method during preprocessing as well as in a PyTorch Dataloader
-                collate function.
-
-                Instead of `List[int]` you can have tensors (numpy arrays, PyTorch tensors or TensorFlow tensors), see
-                the note above for the return type.
-            padding (`bool`, `str` or [`~utils.PaddingStrategy`], *optional*, defaults to `True`):
-                 Select a strategy to pad the returned sequences (according to the model's padding side and padding
-                 index) among:
-
-                - `True` or `'longest'`: Pad to the longest sequence in the batch (or no padding if only a single
-                  sequence if provided).
-                - `'max_length'`: Pad to a maximum length specified with the argument `max_length` or to the maximum
-                  acceptable input length for the model if that argument is not provided.
-                - `False` or `'do_not_pad'` (default): No padding (i.e., can output a batch with sequences of different
-                  lengths).
-            max_length (`int`, *optional*):
-                Maximum length of the returned list and optionally padding length (see above).
-            pad_to_multiple_of (`int`, *optional*):
-                If set will pad the sequence to a multiple of the provided value.
-
-                This is especially useful to enable the use of Tensor Cores on NVIDIA hardware with compute capability
-                `>= 7.5` (Volta).
-            return_attention_mask (`bool`, *optional*):
-                Whether to return the attention mask. If left to the default, will return the attention mask according
-                to the specific tokenizer's default, defined by the `return_outputs` attribute.
-
-                [What are attention masks?](../glossary#attention-mask)
-            return_tensors (`str` or [`~utils.TensorType`], *optional*):
-                If set, will return tensors instead of list of python integers. Acceptable values are:
-
-                - `'tf'`: Return TensorFlow `tf.constant` objects.
-                - `'pt'`: Return PyTorch `torch.Tensor` objects.
-                - `'np'`: Return Numpy `np.ndarray` objects.
-            verbose (`bool`, *optional*, defaults to `True`):
-                Whether or not to print more information and warnings.
-        """
         if self.__class__.__name__.endswith("Fast"):
             if not self.deprecation_warnings.get("Asking-to-pad-a-fast-tokenizer", False):
                 self.deprecation_warnings["Asking-to-pad-a-fast-tokenizer"] = True
 
         # If we have a list of dicts, let's convert it in a dict of lists
         # We do this to allow using this method as a collate_fn function in PyTorch Dataloader
-        if isinstance(encoded_inputs, (list, tuple)) and isinstance(encoded_inputs[0], Mapping):
+        if isinstance(encoded_inputs, (list, tuple)) and isinstance(encoded_inputs[0], typing.Mapping):
             encoded_inputs = {key: [example[key] for example in encoded_inputs] for key in encoded_inputs[0].keys()}
 
         # The model's main input name, usually `input_ids`, has be passed for padding
@@ -8781,7 +8557,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
 
         required_input = encoded_inputs[self.model_input_names[0]]
 
-        if required_input is None or (isinstance(required_input, Sized) and len(required_input) == 0):
+        if required_input is None or (isinstance(required_input, typing.Sized) and len(required_input) == 0):
             if return_attention_mask:
                 encoded_inputs["attention_mask"] = []
             return encoded_inputs
@@ -9359,15 +9135,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
 
     # @contextmanager
     def as_target_tokenizer(self):
-        """
-        Temporarily sets the tokenizer for encoding the targets. Useful for tokenizer associated to
-        sequence-to-sequence models that need a slightly different processing for the labels.
-        """
-        warnings.warn(
-            "`as_target_tokenizer` is deprecated and will be removed in v5 of Transformers. You can tokenize your "
-            "labels by using the argument `text_target` of the regular `__call__` method (either in the same call as "
-            "your input texts if you use the same keyword arguments, or in a separate call."
-        )
+
         self._switch_to_target_mode()
         self._in_target_context_manager = True
         yield
@@ -9376,20 +9144,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
 
     @classmethod
     def register_for_auto_class(cls, auto_class="AutoTokenizer"):
-        """
-        Register this class with a given auto class. This should only be used for custom tokenizers as the ones in the
-        library are already mapped with `AutoTokenizer`.
 
-        <Tip warning={true}>
-
-        This API is experimental and may have some slight breaking changes in the next releases.
-
-        </Tip>
-
-        Args:
-            auto_class (`str` or `type`, *optional*, defaults to `"AutoTokenizer"`):
-                The auto class to register this new tokenizer with.
-        """
         if not isinstance(auto_class, str):
             auto_class = auto_class.__name__
 
@@ -9471,25 +9226,8 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
             Otherwise, input_ids, attention_mask will be the only keys.
         """
         # docstyle-ignore
-        formatted_warning = """
-`prepare_seq2seq_batch` is deprecated and will be removed in version 5 of HuggingFace Transformers. Use the regular
-`__call__` method to prepare your inputs and targets.
+        formatted_warning = ''
 
-Here is a short example:
-
-model_inputs = tokenizer(src_texts, text_target=tgt_texts, ...)
-
-If you either need to use different keyword arguments for the source and target texts, you should do two calls like
-this:
-
-model_inputs = tokenizer(src_texts, ...)
-labels = tokenizer(text_target=tgt_texts, ...)
-model_inputs["labels"] = labels["input_ids"]
-
-See the documentation of your specific tokenizer for more details on the specific arguments to the tokenizer of choice.
-For a more complete example, see the implementation of `prepare_seq2seq_batch`.
-"""
-        warnings.warn(formatted_warning, FutureWarning)
         # mBART-specific kwargs that should be ignored by other models.
         kwargs.pop("src_lang", None)
         kwargs.pop("tgt_lang", None)
@@ -10146,7 +9884,7 @@ class PreTrainedTokenizer(PreTrainedTokenizerBase):
             return text
 
 
-class CLIPTokenizer(PreTrainedTokenizer):
+class CATokenizer(PreTrainedTokenizer):
     vocab_files_names = VOCAB_FILES_NAMES
     # pretrained_vocab_files_map = PRETRAINED_VOCAB_FILES_MAP
     # max_model_input_sizes = PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES
@@ -10342,7 +10080,7 @@ class CLIPTokenizer(PreTrainedTokenizer):
         return vocab_file, merge_file
 
 
-class CLIPVisionModel(CLIPPreTrainedModel, ABC):
+class CVisionModel(CLIPPreTrainedModel, ABC):
     config_class = CLIPVisionConfig
     main_input_name = "pixel_values"
 

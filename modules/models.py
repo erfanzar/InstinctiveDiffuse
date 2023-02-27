@@ -5,29 +5,34 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import numpy as np
 import torch
 from diffusers.models import AutoencoderKL, UNet2DConditionModel
-from diffusers.schedulers import KarrasDiffusionSchedulers
-from diffusers.utils import is_accelerate_available, is_accelerate_version, deprecate
+
+from .models_utils import KarrasDiffusionSchedulers
+from accelerate import cpu_offload
+
 from erutils import fprint
 from erutils.lightning import pars_model_v2
 from packaging import version
 from torch import nn
 
-from .modules import Conv, TConv, DoubleConv, Down, Up, OutConv, CLIPFeatureExtractor, CLIPTokenizer, PreTrainedModel, \
-    CLIPTextModel, CLIPConfig, CLIPVisionModel
+from .modules import Conv, TConv, DoubleConv, Down, Up, OutConv, CFExtractor, CATokenizer, PTModel, \
+    CTextModel, CConfigs, CVisionModel
 from .pipeline import PipeLine
 from .pipeline_utils import FrozenDict, cosine_distance, randn_tensor, PLOutput
+import importlib
+
+
 
 
 # CHECK REQUIRED =======>
-class SafetyChecker(PreTrainedModel, ABC):
-    config_class = CLIPConfig
+class SafetyChecker(PTModel, ABC):
+    config_class = CConfigs
 
     _no_split_modules = ["CLIPEncoderLayer"]
 
-    def __init__(self, config: CLIPConfig):
+    def __init__(self, config: CConfigs):
         super().__init__(config)
 
-        self.vision_model = CLIPVisionModel(config.vision_config)
+        self.vision_model = CVisionModel(config.vision_config)
         self.visual_projection = nn.Linear(config.vision_config.hidden_size, config.projection_dim, bias=False)
 
         self.concept_embeds = nn.Parameter(torch.ones(17, config.projection_dim), requires_grad=False)
@@ -77,7 +82,6 @@ class SafetyChecker(PreTrainedModel, ABC):
             if has_nsfw_concept:
                 images[idx] = np.zeros(images[idx].shape)  # black image
 
-
         return images, has_nsfw_concepts
 
     @torch.no_grad()
@@ -115,12 +119,12 @@ class CGRModel(PipeLine):
     def __init__(
             self,
             vae: AutoencoderKL,
-            text_encoder: CLIPTextModel,
-            tokenizer: CLIPTokenizer,
+            text_encoder: CTextModel,
+            tokenizer: CATokenizer,
             unet: UNet2DConditionModel,
             scheduler: KarrasDiffusionSchedulers,
             safety_checker: SafetyChecker,
-            feature_extractor: CLIPFeatureExtractor,
+            feature_extractor: CFExtractor,
             requires_safety_checker: bool = True,
     ):
         super().__init__()
@@ -134,7 +138,6 @@ class CGRModel(PipeLine):
             new_config = dict(scheduler.config)
             new_config["clip_sample"] = False
             scheduler._internal_dict = FrozenDict(new_config)
-
 
         if safety_checker is not None and feature_extractor is None:
             raise ValueError(
@@ -158,7 +161,7 @@ class CGRModel(PipeLine):
                 " checkpoint from the Hugging Face Hub, it would be very nice if you could open a Pull request for"
                 " the `unet/config.json` file"
             )
-            deprecate("sample_size<64", "1.0.0", deprecation_message, standard_warn=False)
+
             new_config = dict(unet.config)
             new_config["sample_size"] = 64
             unet._internal_dict = FrozenDict(new_config)
@@ -185,10 +188,7 @@ class CGRModel(PipeLine):
 
     def enable_sequential_cpu_offload(self, gpu_id=0):
 
-        if is_accelerate_available():
-            from accelerate import cpu_offload
-        else:
-            raise ImportError("Please install accelerate via `pip install accelerate`")
+
 
         device = torch.device(f"cuda:{gpu_id}")
 
@@ -200,10 +200,7 @@ class CGRModel(PipeLine):
 
     def enable_model_cpu_offload(self, gpu_id=0):
 
-        if is_accelerate_available() and is_accelerate_version(">=", "0.17.0.dev0"):
-            from accelerate import cpu_offload_with_hook
-        else:
-            raise ImportError("`enable_model_offload` requires `accelerate v0.17.0` or higher.")
+        from accelerate import cpu_offload_with_hook
 
         device = torch.device(f"cuda:{gpu_id}")
 
@@ -479,7 +476,7 @@ class CGRModel(PipeLine):
         device = self._execution_device
 
         do_classifier_free_guidance = guidance_scale > 1.0
-        #print("STEP 3 ")
+        # print("STEP 3 ")
         # 3. Encode input prompt
         prompt_embeds = self._encode_prompt(
             prompt,
@@ -490,11 +487,11 @@ class CGRModel(PipeLine):
             prompt_embeds=prompt_embeds,
             negative_prompt_embeds=negative_prompt_embeds,
         )
-        #print("STEP 4 ")
+        # print("STEP 4 ")
         # 4. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps, device=device)
         timesteps = self.scheduler.timesteps
-        #print("STEP 5 ")
+        # print("STEP 5 ")
         # 5. Prepare latent variables
         num_channels_latents = self.unet.in_channels
         latents = self.prepare_latents(
@@ -507,7 +504,7 @@ class CGRModel(PipeLine):
             generator,
             latents,
         )
-        #print("STEP 6 ")
+        # print("STEP 6 ")
         # 6. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
         # print("STEP 7 ")
