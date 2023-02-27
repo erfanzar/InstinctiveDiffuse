@@ -1,25 +1,28 @@
+import argparse
 import os
 import typing
 from typing import Union, List, Optional
-import numpy as np
 
+import numpy as np
 import torch
-import argparse
+
 from baseline import generate, MAXIMUM_RES
 from modules.models import CGRModel
 
 pars = argparse.ArgumentParser()
 
 pars.add_argument('--model-path', '--model-path', default=r'E:\CGRModel-checkpoints', type=str)
-pars.add_argument('--prompts', '--prompts', type=str, nargs='+')
+pars.add_argument('--prompts', '--prompts', type=str, nargs='+',
+                  default='food cort for fast food restaurant,realistic,detailed,sharp,smooth')
 
 pars.add_argument('--step', '--step', type=int, default=1)
-pars.add_argument('--size', '--size', type=int, default=768)
+pars.add_argument('--size', '--size', type=int, default=512)
 opt = pars.parse_args()
 
 
 def main(model_path: Union[str, os.PathLike], prompts: Union[str, List[str]], size: Optional[typing.Tuple],
-         device: torch.device = 'cuda' if torch.cuda.is_available() else 'cpu', using_step: Optional[bool] = True,
+         device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu',
+         using_step: Optional[bool] = True,
          step: Optional[int] = 2):
     kwargs = dict(use_version=True, version='v4', use_realistic=False, size=size)
     data_type = torch.float32 if device != 'cuda' else torch.float16
@@ -53,4 +56,5 @@ if __name__ == "__main__":
         raise ValueError(
             f'You tried to get image with size {opt.size} but our model currently work at maximum {MAXIMUM_RES} try lower resolution')
     main(model_path=r'{}'.format(opt.model_path), step=opt.step,
+         device='cpu',
          prompts=opt.prompts, size=(opt.size, opt.size))

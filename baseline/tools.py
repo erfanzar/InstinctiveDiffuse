@@ -136,7 +136,6 @@ def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRMod
                               use_check_prompt=use_check_prompt) for p in prompt]
     else:
         raise ValueError('Wrong input for prompt input should be string or a list of strings')
-    print(f'PROMPT :  {prompt} | SIZE : {size}')
 
     generated_sample = model(prompt=prompt, height=size[0], width=size[1])
     if task == 'PIL':
@@ -156,7 +155,7 @@ def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRMod
         return True
     elif task == 'save':
         try:
-            print(generated_sample)
+
             if isinstance(org_p, list):
                 for v in range(len(generated_sample.images)):
                     generated_sample.images[v].save(f'{org_p[v]}.{image_format}')

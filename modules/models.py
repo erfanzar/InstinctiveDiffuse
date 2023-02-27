@@ -6,19 +6,19 @@ import numpy as np
 import torch
 from diffusers.models import AutoencoderKL, UNet2DConditionModel
 from diffusers.schedulers import KarrasDiffusionSchedulers
-from diffusers.utils import logging, is_accelerate_available, is_accelerate_version, deprecate
+from diffusers.utils import is_accelerate_available, is_accelerate_version, deprecate
 from erutils import fprint
 from erutils.lightning import pars_model_v2
 from packaging import version
 from torch import nn
-from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer, PreTrainedModel, CLIPConfig, \
-    CLIPVisionModel
 
-from .modules import Conv, TConv, DoubleConv, Down, Up, OutConv
+
+from .modules import Conv, TConv, DoubleConv, Down, Up, OutConv, CLIPFeatureExtractor, CLIPTokenizer, PreTrainedModel, \
+    CLIPTextModel, CLIPConfig, CLIPVisionModel
 from .pipeline import PipeLine
 from .pipeline_utils import FrozenDict, cosine_distance, randn_tensor, PLOutput
 
-logger = logging.get_logger(__name__)
+
 
 
 # CHECK REQUIRED =======>
@@ -80,11 +80,6 @@ class SafetyChecker(PreTrainedModel, ABC):
             if has_nsfw_concept:
                 images[idx] = np.zeros(images[idx].shape)  # black image
 
-        if any(has_nsfw_concepts):
-            logger.warning(
-                "Potential NSFW content was detected in one or more images. A black image will be returned instead."
-                " Try again with a different prompt and/or seed."
-            )
 
         return images, has_nsfw_concepts
 
@@ -143,15 +138,6 @@ class CGRModel(PipeLine):
             new_config["clip_sample"] = False
             scheduler._internal_dict = FrozenDict(new_config)
 
-        if safety_checker is None and requires_safety_checker:
-            logger.warning(
-                f"You have disabled the safety checker for {self.__class__} by passing `safety_checker=None`. Ensure"
-                " that you abide to the conditions of the Stable Diffusion license and do not expose unfiltered"
-                " results in services or applications open to the public. Both the diffusers team and Hugging Face"
-                " strongly recommend to keep the safety filter enabled in all public facing circumstances, disabling"
-                " it only for use-cases that involve analyzing network behavior or auditing its results."
-
-            )
 
         if safety_checker is not None and feature_extractor is None:
             raise ValueError(
@@ -283,10 +269,6 @@ class CGRModel(PipeLine):
                 removed_text = self.tokenizer.batch_decode(
                     untruncated_ids[:, self.tokenizer.model_max_length - 1: -1]
                 )
-                logger.warning(
-                    "The following part of your input was truncated because CLIP can only handle sequences up to"
-                    f" {self.tokenizer.model_max_length} tokens: {removed_text}"
-                )
 
             if hasattr(self.text_encoder.config,
                        "use_attention_mask") and self.text_encoder.config.use_attention_mask:
@@ -350,7 +332,6 @@ class CGRModel(PipeLine):
             negative_prompt_embeds = negative_prompt_embeds[0]
 
         if do_classifier_free_guidance:
-            # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
             seq_len = negative_prompt_embeds.shape[1]
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=self.text_encoder.dtype, device=device)
@@ -358,9 +339,6 @@ class CGRModel(PipeLine):
             negative_prompt_embeds = negative_prompt_embeds.repeat(1, num_images_per_prompt, 1)
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-            # For classifier free guidance, we need to do two forward passes.
-            # Here we concatenate the unconditional and text embeddings into a single batch
-            # to avoid doing two forward passes
             prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds])
 
         return prompt_embeds
