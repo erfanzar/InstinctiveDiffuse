@@ -1,9 +1,11 @@
+import gc
 import inspect
 import itertools
 import json
 import os
 import re
 import shutil
+import tempfile
 import typing
 from abc import ABC
 from collections import UserDict, OrderedDict
@@ -17,35 +19,52 @@ import PIL
 import numpy as np
 import torch
 import torch.nn.functional as F
-from accelerate import init_empty_weights
-from accelerate.utils import save_offload_index
+from accelerate import init_empty_weights, infer_auto_device_map, dispatch_model
+from accelerate.utils import save_offload_index, load_offloaded_weights, set_module_tensor_to_device
+from diffusers.models.modeling_utils import load_state_dict
 from huggingface_hub import CommitOperationAdd
 from torch import Tensor
 from torch import nn as nn
+from torchvision.transforms.functional import center_crop
 from transformers import requires_backends, is_tf_available, is_torch_available, is_flax_available, \
     is_safetensors_available, __version__, resize, MODEL_FOR_CAUSAL_LM_MAPPING, MODEL_FOR_CAUSAL_IMAGE_MODELING_MAPPING, \
     MODEL_FOR_VISION_2_SEQ_MAPPING, MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING, MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING, \
     BeamSearchScorer, CLIPModel, ConstraintListState, MaxLengthCriteria, TopPLogitsWarper, \
     RepetitionPenaltyLogitsProcessor, NoRepeatNGramLogitsProcessor, ForcedEOSTokenLogitsProcessor, \
-    InfNanRemoveLogitsProcessor, ForcedBOSTokenLogitsProcessor, BasicTokenizer
+    InfNanRemoveLogitsProcessor, ForcedBOSTokenLogitsProcessor, BasicTokenizer, rescale, TypicalLogitsWarper, \
+    MaxTimeCriteria, StoppingCriteria, DisjunctiveConstraint, PhrasalConstraint
+from transformers.configuration_utils import get_configuration_file
 from transformers.deepspeed import is_deepspeed_zero3_enabled, deepspeed_config
+from transformers.dynamic_module_utils import custom_object_save
 from transformers.generation import validate_stopping_criteria, BeamHypotheses, MaxNewTokensCriteria, \
     ExponentialDecayLengthPenalty, LogitNormalization
-from transformers.generation.logits_process import SuppressTokensAtBeginLogitsProcessor, ForceTokensLogitsProcessor
+from transformers.generation.logits_process import SuppressTokensAtBeginLogitsProcessor, ForceTokensLogitsProcessor, \
+    HammingDiversityLogitsProcessor, EncoderNoRepeatNGramLogitsProcessor, NoBadWordsLogitsProcessor, \
+    MinLengthLogitsProcessor, TemperatureLogitsWarper, TopKLogitsWarper, PrefixConstrainedLogitsProcessor, \
+    SuppressTokensLogitsProcessor
+from transformers.generation.tf_utils import _ranking_fast
 from transformers.image_processing_utils import get_size_dict
-from transformers.image_transforms import normalize, get_resize_output_image_size
+from transformers.image_transforms import normalize, get_resize_output_image_size, to_channel_dimension_format
+from transformers.image_utils import is_batched, valid_images, to_numpy_array
+from transformers.modeling_outputs import Seq2SeqLMOutput, CausalLMOutputWithPast
 from transformers.modeling_utils import get_balanced_memory, get_state_dict_dtype, get_parameter_device, \
-    _load_state_dict_into_meta_model, _load_state_dict_into_model
+    _load_state_dict_into_meta_model, _load_state_dict_into_model, get_disk_only_shard_files, no_init_weights, \
+    get_parameter_dtype, _init_weights, expand_device_map, _move_model_to_meta
+from transformers.models.clip.image_processing_clip import convert_to_rgb
 from transformers.models.clip.modeling_clip import CLIPVisionEmbeddings, CLIPAttention, CLIPTextEmbeddings, CLIPMLP, \
-    CLIPTextModelWithProjection, CLIPVisionModelWithProjection, CLIPEncoder, CLIPVisionTransformer
+    CLIPTextModelWithProjection, CLIPVisionModelWithProjection, CLIPEncoder, CLIPVisionTransformer, CLIPTextTransformer
 from transformers.models.clip.tokenization_clip import get_pairs, bytes_to_unicode, whitespace_clean
 from transformers.pytorch_utils import torch_int_div
 from transformers.tokenization_utils import _insert_one_token_to_ordered_list, Trie, ADDED_TOKENS_FILE, \
     SPECIAL_TOKENS_MAP_FILE, TOKENIZER_CONFIG_FILE
-from transformers.tokenization_utils_base import FULL_TOKENIZER_FILE, get_fast_tokenizer_file, LARGE_INTEGER
+from transformers.tokenization_utils_base import FULL_TOKENIZER_FILE, get_fast_tokenizer_file, LARGE_INTEGER, \
+    VERY_LARGE_INTEGER
 from transformers.utils import is_torch_device, is_remote_url, is_offline_mode, to_py_obj, is_tf_tensor, \
     is_torch_tensor, is_jax_tensor, is_numpy_array, GENERATION_CONFIG_NAME, download_url, cached_file, TF_WEIGHTS_NAME, \
-    is_tensor, WEIGHTS_NAME, is_accelerate_available, is_bitsandbytes_available, extract_commit_hash
+    is_tensor, WEIGHTS_NAME, is_accelerate_available, is_bitsandbytes_available, extract_commit_hash, has_file, \
+    ContextManagers, DUMMY_INPUTS
+from transformers.utils.hub import get_checkpoint_shard_files
+from transformers.utils.versions import require_version_core
 
 WEIGHTS_NAME = "pytorch_model.bin"
 WEIGHTS_INDEX_NAME = "pytorch_model.bin.index.json"
@@ -1429,7 +1448,6 @@ class PushToHubMixin:
         return {f: os.path.getmtime(os.path.join(working_dir, f)) for f in os.listdir(working_dir)}
 
 
-
 class PTConfig(PushToHubMixin):
     model_type: str = ""
     is_composition: bool = False
@@ -2293,6 +2311,18 @@ class EpsilonLogitsWarper:
     pass
 
 
+class EncoderRepetitionPenaltyLogitsProcessor:
+    pass
+
+
+class MinNewTokensLengthLogitsProcessor:
+    pass
+
+
+class EtaLogitsWarper:
+    pass
+
+
 class GenerationMixin:
 
     def prepare_inputs_for_generation(self, *args, **kwargs):
@@ -3142,8 +3172,7 @@ class GenerationMixin:
             )
 
         elif is_constraint_gen_mode:
-            if generation_config.num_return_sequences > generation_config.num_beams:
-                raiseValueError()
+
 
             if stopping_criteria.max_length is None:
                 raise ValueError()
@@ -5980,7 +6009,7 @@ class PTModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMixin):
             keep_in_fp32_modules = []
 
         if load_in_8bit:
-            from .utils.bitsandbytes import get_keys_to_not_convert, replace_8bit_linear
+            from transformers.utils.bitsandbytes import get_keys_to_not_convert, replace_8bit_linear
 
             # We keep some modules such as the lm_head in their original dtype for numerical stability reasons
             if load_in_8bit_skip_modules is None:
@@ -6160,7 +6189,7 @@ class PTModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMixin):
     ):
         is_safetensors = False
         if load_in_8bit:
-            from .utils.bitsandbytes import set_module_8bit_tensor_to_device
+            from transformers.utils.bitsandbytes import set_module_8bit_tensor_to_device
 
         if device_map is not None and "disk" in device_map.values():
             archive_file = (
@@ -6370,12 +6399,8 @@ class PTModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMixin):
             else:
                 disk_only_shard_files = []
 
-            if len(resolved_archive_file) > 1:
-                resolved_archive_file = logging.tqdm(resolved_archive_file, desc="Loading checkpoint shards")
             for shard_file in resolved_archive_file:
-                # Skip the load for shards that only contain disk-offloaded weights when using safetensors for the offload.
-                if shard_file in disk_only_shard_files:
-                    continue
+
                 state_dict = load_state_dict(shard_file)
 
                 # Mistmatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
@@ -7696,7 +7721,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
             init_kwargs = init_configuration
 
         if config_tokenizer_class is None:
-            from .models.auto.configuration_auto import AutoConfig  # tests_ignore
+            from transformers.models.auto.configuration_auto import AutoConfig
 
             # Second attempt. If we have not yet found tokenizer_class, let's try to use the config.
             try:
@@ -7714,7 +7739,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
             # if config_tokenizer_class is None:
             #     # Third attempt. If we have not yet found the original type of the tokenizer,
             #     # we are loading we see if we can infer it from the type of the configuration file
-            #     from .models.auto.tokenization_auto import TOKENIZER_MAPPING_NAMES  # tests_ignore
+            #     from transformers.models.auto.tokenization_auto import TOKENIZER_MAPPING_NAMES  # tests_ignore
             #
             #     if hasattr(config, "model_type"):
             #         model_type = config.model_type
@@ -8069,7 +8094,6 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
 
         # Get truncation strategy
         if truncation is None and old_truncation_strategy != "do_not_truncate":
-            if verbose:
 
             truncation_strategy = TruncationStrategy(old_truncation_strategy)
         elif truncation is not False and truncation is not None:
