@@ -185,25 +185,6 @@ class ConfigMixin:
                 raise EnvironmentError(
                     f"Error no file named {cls.config_name} found in directory {pretrained_model_name_or_path}."
                 )
-        else:
-            try:
-                # Load from URL or cache if already cached
-                config_file = hf_hub_download(
-                    pretrained_model_name_or_path,
-                    filename=cls.config_name,
-                    cache_dir=cache_dir,
-                    force_download=force_download,
-                    proxies=proxies,
-                    resume_download=resume_download,
-                    local_files_only=local_files_only,
-                    use_auth_token=use_auth_token,
-                    user_agent=user_agent,
-                    subfolder=subfolder,
-                    revision=revision,
-                )
-
-            except ValueError:
-                print('ValueError cause was nothing found')
 
         try:
             # Load config dict

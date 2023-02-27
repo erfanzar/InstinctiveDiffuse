@@ -102,6 +102,7 @@ def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRMod
              size: typing.Optional[typing.Tuple] = None,
              use_version: typing.Optional[bool] = True, version: typing.Optional[str] = 'v4',
              use_realistic: typing.Optional[bool] = False, image_format: typing.Optional[str] = 'png',
+             nsfw_allowed: typing.Optional[bool] = False,
              use_check_prompt:
              typing.Optional[bool] = False, task: typing.Optional[str] = 'save'):
     if task == 'save' and image_format not in ALLOWED_SAVE_FORMATS:
@@ -137,7 +138,7 @@ def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRMod
     else:
         raise ValueError('Wrong input for prompt input should be string or a list of strings')
 
-    generated_sample = model(prompt=prompt, height=size[0], width=size[1])
+    generated_sample = model(prompt=prompt, height=size[0], width=size[1], nsfw_allowed=nsfw_allowed)
     if task == 'PIL':
         return generated_sample.images[0]
     elif task == 'dict':

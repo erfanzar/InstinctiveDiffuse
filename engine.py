@@ -3,6 +3,7 @@ import os
 import typing
 from typing import Union, List, Optional
 
+import erutils
 import numpy as np
 import torch
 
@@ -13,20 +14,31 @@ pars = argparse.ArgumentParser()
 
 pars.add_argument('--model-path', '--model-path', default=r'E:\CGRModel-checkpoints', type=str)
 pars.add_argument('--prompts', '--prompts', type=str, nargs='+',
-                  default='food cort for fast food restaurant,realistic,detailed,sharp,smooth')
+                  default='inside house design architects,realistic,detailed,sharp,smooth')
 
 pars.add_argument('--step', '--step', type=int, default=1)
+pars.add_argument('--device', '--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu')
 pars.add_argument('--size', '--size', type=int, default=512)
 opt = pars.parse_args()
 
 
 def main(model_path: Union[str, os.PathLike], prompts: Union[str, List[str]], size: Optional[typing.Tuple],
          device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu',
-         using_step: Optional[bool] = True,
+         using_step: Optional[bool] = True, nsfw_allowed: Optional[bool] = True,
          step: Optional[int] = 2):
-    kwargs = dict(use_version=True, version='v4', use_realistic=False, size=size)
+    kwargs = dict(use_version=True, version='v4', use_realistic=False, size=size, nsfw_allowed=nsfw_allowed)
     data_type = torch.float32 if device != 'cuda' else torch.float16
     model = CGRModel.from_pretrained(model_path, torch_dtype=data_type).to(device)
+    if nsfw_allowed:
+        erutils.fprint(
+            f"finding Safety Checker Status : {hasattr(model, 'safety_checker')} on {model.safety_checker.device if hasattr(model, 'safety_checker') else None}")
+        erutils.fprint(f'Deleting UnUsing Models')
+
+        model.safety_checker.to('cpu')
+
+        erutils.fprint('Rechecking ...')
+        erutils.fprint(
+            f"finding Safety Checker Status : {hasattr(model, 'safety_checker')} on {model.safety_checker.device if hasattr(model, 'safety_checker') else None}")
     if isinstance(prompts, str):
         generate(prompt=prompts, model=model, **kwargs)
     elif isinstance(prompts, list):
@@ -56,5 +68,5 @@ if __name__ == "__main__":
         raise ValueError(
             f'You tried to get image with size {opt.size} but our model currently work at maximum {MAXIMUM_RES} try lower resolution')
     main(model_path=r'{}'.format(opt.model_path), step=opt.step,
-         device='cpu',
+         device=opt.device,
          prompts=opt.prompts, size=(opt.size, opt.size))

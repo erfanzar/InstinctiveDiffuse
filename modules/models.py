@@ -12,13 +12,10 @@ from erutils.lightning import pars_model_v2
 from packaging import version
 from torch import nn
 
-
 from .modules import Conv, TConv, DoubleConv, Down, Up, OutConv, CLIPFeatureExtractor, CLIPTokenizer, PreTrainedModel, \
     CLIPTextModel, CLIPConfig, CLIPVisionModel
 from .pipeline import PipeLine
 from .pipeline_utils import FrozenDict, cosine_distance, randn_tensor, PLOutput
-
-
 
 
 # CHECK REQUIRED =======>
@@ -461,7 +458,7 @@ class CGRModel(PipeLine):
             callback: Optional[Callable[[int, int, torch.FloatTensor], None]] = None,
             callback_steps: int = 1,
             cross_attention_kwargs: Optional[Dict[str, Any]] = None,
-            nsfw_allowed: Optional[bool] = True
+            nsfw_allowed: Optional[bool] = False
     ):
 
         # 1. Check inputs. Raise error if not correct
@@ -480,11 +477,9 @@ class CGRModel(PipeLine):
             batch_size = prompt_embeds.shape[0]
 
         device = self._execution_device
-        # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
-        # corresponds to doing no classifier free guidance.
-        do_classifier_free_guidance = guidance_scale > 1.0
 
+        do_classifier_free_guidance = guidance_scale > 1.0
+        #print("STEP 3 ")
         # 3. Encode input prompt
         prompt_embeds = self._encode_prompt(
             prompt,
@@ -495,11 +490,11 @@ class CGRModel(PipeLine):
             prompt_embeds=prompt_embeds,
             negative_prompt_embeds=negative_prompt_embeds,
         )
-
+        #print("STEP 4 ")
         # 4. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps, device=device)
         timesteps = self.scheduler.timesteps
-
+        #print("STEP 5 ")
         # 5. Prepare latent variables
         num_channels_latents = self.unet.in_channels
         latents = self.prepare_latents(
@@ -512,10 +507,10 @@ class CGRModel(PipeLine):
             generator,
             latents,
         )
-
+        #print("STEP 6 ")
         # 6. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
-
+        # print("STEP 7 ")
         # 7. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -542,11 +537,12 @@ class CGRModel(PipeLine):
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
+                    progress_bar.display('running on AlmubdieunTech DEVICE')
                     progress_bar.update()
                     if callback is not None and i % callback_steps == 0:
                         callback(i, t, latents)
 
-
+        # print("STEP - ")
         if output_type == "latent":
             image = latents
             has_nsfw_concept = None
