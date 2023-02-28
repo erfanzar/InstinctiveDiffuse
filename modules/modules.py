@@ -27,11 +27,11 @@ from torch import Tensor
 from torch import nn as nn
 from torchvision.transforms.functional import center_crop
 from transformers import requires_backends, is_tf_available, is_torch_available, is_flax_available, \
-    is_safetensors_available, __version__, resize, MODEL_FOR_CAUSAL_LM_MAPPING, MODEL_FOR_CAUSAL_IMAGE_MODELING_MAPPING, \
+    is_safetensors_available, __version__, MODEL_FOR_CAUSAL_LM_MAPPING, MODEL_FOR_CAUSAL_IMAGE_MODELING_MAPPING, \
     MODEL_FOR_VISION_2_SEQ_MAPPING, MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING, MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING, \
     BeamSearchScorer, CLIPModel, ConstraintListState, MaxLengthCriteria, TopPLogitsWarper, \
     RepetitionPenaltyLogitsProcessor, NoRepeatNGramLogitsProcessor, ForcedEOSTokenLogitsProcessor, \
-    InfNanRemoveLogitsProcessor, ForcedBOSTokenLogitsProcessor, BasicTokenizer, rescale, TypicalLogitsWarper, \
+    InfNanRemoveLogitsProcessor, ForcedBOSTokenLogitsProcessor, BasicTokenizer, TypicalLogitsWarper, \
     MaxTimeCriteria, StoppingCriteria, DisjunctiveConstraint, PhrasalConstraint
 from transformers.configuration_utils import get_configuration_file
 from transformers.deepspeed import is_deepspeed_zero3_enabled, deepspeed_config

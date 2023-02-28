@@ -3,7 +3,6 @@ import os
 import typing
 from typing import Union, List, Optional
 
-import erutils
 import numpy as np
 import torch
 
@@ -30,15 +29,15 @@ def main(model_path: Union[str, os.PathLike], prompts: Union[str, List[str]], si
     data_type = torch.float32 if device != 'cuda' else torch.float16
     model = CGRModel.from_pretrained(model_path, torch_dtype=data_type).to(device)
     if nsfw_allowed:
-        erutils.fprint(
-            f"finding Safety Checker Status : {hasattr(model, 'safety_checker')} on {model.safety_checker.device if hasattr(model, 'safety_checker') else None}")
-        erutils.fprint(f'Deleting UnUsing Models')
+        # erutils.fprint(
+        #     f"finding Safety Checker Status : {hasattr(model, 'safety_checker')} on {model.safety_checker.device if hasattr(model, 'safety_checker') else None}")
+        # erutils.fprint(f'Deleting UnUsing Models')
 
         model.safety_checker.to('cpu')
 
-        erutils.fprint('Rechecking ...')
-        erutils.fprint(
-            f"finding Safety Checker Status : {hasattr(model, 'safety_checker')} on {model.safety_checker.device if hasattr(model, 'safety_checker') else None}")
+        # erutils.fprint('Rechecking ...')
+        # erutils.fprint(
+        #     f"finding Safety Checker Status : {hasattr(model, 'safety_checker')} on {model.safety_checker.device if hasattr(model, 'safety_checker') else None}")
     if isinstance(prompts, str):
         generate(prompt=prompts, model=model, **kwargs)
     elif isinstance(prompts, list):
@@ -68,5 +67,6 @@ if __name__ == "__main__":
         raise ValueError(
             f'You tried to get image with size {opt.size} but our model currently work at maximum {MAXIMUM_RES} try lower resolution')
     main(model_path=r'{}'.format(opt.model_path), step=opt.step,
-         device=opt.device,
+         # device=opt.device,
+         device='cpu',
          prompts=opt.prompts, size=(opt.size, opt.size))

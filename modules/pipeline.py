@@ -1,3 +1,6 @@
+# IM using a part of transformers neural networks to make job faster
+# and I edited them for my own usage in modules
+
 import importlib
 import inspect
 import json
@@ -11,7 +14,7 @@ from PIL import Image
 from diffusers.utils import logging, deprecate, is_transformers_available
 from packaging import version
 from tqdm import tqdm
-from transformers import PTModel
+from transformers import PreTrainedModel
 
 from .pipeline_utils import FrozenDict
 
@@ -27,7 +30,7 @@ LOADABLE_CLASSES: Optional[Dict] = {
     "transformers": {
         "PreTrainedTokenizer": ["save_pretrained", "from_pretrained"],
         "PreTrainedTokenizerFast": ["save_pretrained", "from_pretrained"],
-        "PTModel": ["save_pretrained", "from_pretrained"],
+        "PreTrainedModel": ["save_pretrained", "from_pretrained"],
         "FeatureExtractionMixin": ["save_pretrained", "from_pretrained"],
         "ProcessorMixin": ["save_pretrained", "from_pretrained"],
         "ImageProcessingMixin": ["save_pretrained", "from_pretrained"],
@@ -185,6 +188,25 @@ class ConfigMixin:
                 raise EnvironmentError(
                     f"Error no file named {cls.config_name} found in directory {pretrained_model_name_or_path}."
                 )
+        else:
+            try:
+                # Load from URL or cache if already cached
+                config_file = hf_hub_download(
+                    pretrained_model_name_or_path,
+                    filename=cls.config_name,
+                    cache_dir=cache_dir,
+                    force_download=force_download,
+                    proxies=proxies,
+                    resume_download=resume_download,
+                    local_files_only=local_files_only,
+                    use_auth_token=use_auth_token,
+                    user_agent=user_agent,
+                    subfolder=subfolder,
+                    revision=revision,
+                )
+
+            except ValueError:
+                print('ValueError cause was nothing found')
 
         try:
             # Load config dict
@@ -730,7 +752,7 @@ class PipeLine(ConfigMixin):
 
                 is_transformers_model = (
                         is_transformers_available()
-                        and issubclass(class_obj, PTModel)
+                        and issubclass(class_obj, PreTrainedModel)
                         and transformers_version >= version.parse("4.20.0")
                 )
 
