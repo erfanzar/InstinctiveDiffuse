@@ -6,14 +6,14 @@ from engine import config_model
 from baseline import generate
 import socket
 
-IP: Optional[str] = socket.gethostbyname(socket.gethostname())
-app = Flask(__name__)
 MODEL_PATH: Optional[str] = r'E:\CGRModel-checkpoints'
 SELECTED_DEVICE: Union[str, torch.device] = 'cpu'
 IS_NSFW_ALLOWED: Optional[bool] = True
 OUT_DIR: Optional[str] = 'out'
 SIZE: Union[Tuple[int, int]] = (512, 512)
 model = config_model(model_path=MODEL_PATH, device=SELECTED_DEVICE, nsfw_allowed=IS_NSFW_ALLOWED)
+IP: Optional[str] = socket.gethostbyname(socket.gethostname())
+app = Flask(__name__)
 
 erutils.fprint('MODEL LOADED *')
 erutils.fprint(f"START LISTENING ON : {IP} ")
@@ -33,4 +33,4 @@ def progress(prompt):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host=IP)
+    app.run(debug=False, host=IP)
