@@ -1,4 +1,5 @@
 import copy
+import os.path
 import typing
 
 import erutils
@@ -99,12 +100,14 @@ def v_to_prompt(prompt: typing.Union[str, typing.List[str]], use_check_prompt, u
 
 
 def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRModel],
-             size: typing.Optional[typing.Tuple] = None,
+             size: typing.Optional[typing.Tuple] = None, out_dir: typing.Optional[str] = 'out',
              use_version: typing.Optional[bool] = True, version: typing.Optional[str] = 'v4',
              use_realistic: typing.Optional[bool] = False, image_format: typing.Optional[str] = 'png',
              nsfw_allowed: typing.Optional[bool] = False,
              use_check_prompt:
              typing.Optional[bool] = False, task: typing.Optional[str] = 'save'):
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
     if task == 'save' and image_format not in ALLOWED_SAVE_FORMATS:
         raise ValueError(
             f'stop execution of command cause provided format not available in formats : \n '
@@ -159,10 +162,10 @@ def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRMod
 
             if isinstance(org_p, list):
                 for v in range(len(generated_sample.images)):
-                    generated_sample.images[v].save(f'{org_p[v]}.{image_format}')
+                    generated_sample.images[v].save(f'{out_dir}/{org_p[v]}.{image_format}')
             elif isinstance(org_p, str):
                 for v in range(len(generated_sample.images)):
-                    generated_sample.images[v].save(f'{org_p}.{image_format}')
+                    generated_sample.images[v].save(f'{out_dir}/{org_p}.{image_format}')
             return True
         except Warning as w:
             erutils.fprint(w)

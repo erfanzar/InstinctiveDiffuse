@@ -28,8 +28,6 @@ class HyperParameters(object):
         frozen_weight_use: Optional[bool] = kwargs.pop('frozen_weight_use', True)
         load_format: Optional[str] = kwargs.pop('load_format', '.bin')
 
-        self.__dict__['provider'] = provider
-        self.__dict__['model_name'] = model_name
         self.__dict__['device'] = device
         self.__dict__['d_type'] = d_type
         self.__dict__['show_details'] = show_details
