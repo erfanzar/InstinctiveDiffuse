@@ -25,13 +25,13 @@ opt = pars.parse_args()
 def config_model(model_path: Union[str, os.PathLike],
                  device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu',
                  nsfw_allowed: Optional[bool] = True):
-    # data_type = torch.float32 if device != 'cuda' else torch.float16
-    # model = CGRModel.from_pretrained(model_path, torch_dtype=data_type).to(device)
-    # if nsfw_allowed:
-    #     model.safety_checker.to('cpu')
-    #
-    # return model
-    return None
+    data_type = torch.float32 if device != 'cuda' else torch.float16
+    model = CGRModel.from_pretrained(model_path, torch_dtype=data_type).to(device)
+    if nsfw_allowed:
+        model.safety_checker.to('cpu')
+
+    return model
+
 
 
 def main(model: Optional[CGRModel], prompts: Union[str, List[str], os.PathLike], size: Optional[typing.Tuple],
