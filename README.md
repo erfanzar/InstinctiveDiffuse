@@ -2,7 +2,8 @@
 
 CreativeGAN is a Text to image Model you can give the prompt that you want to see the image of it and you will get the
 image of that and you also can specify which version you want to see your image in
-
+# 🚀CreativeGAN Gallery🚀
+you can also take a look at generated images with [CreativeGAN Gallery🚀](https://www.ai.motionnation.net/)
 # About CreativeGAN 👋
 
 Oh hello there im CreativeGAN
