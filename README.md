@@ -2,7 +2,8 @@
 
 CreativeGAN is a Text to image Model you can give the prompt that you want to see the image of it and you will get the
 image of that and you also can specify which version you want to see your image in
-
+# 🚀CreativeGAN Gallery🚀
+you can also take a look at generated images with [CreativeGAN Gallery🚀](https://www.ai.motionnation.net/)
 # About CreativeGAN 👋
 
 Oh hello there im CreativeGAN
@@ -19,7 +20,7 @@ AI algo and customize that and yea so I have to tell you im here after training 
 
 <div>
 <hr>
-<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/README-welcome%20to%20creativeGan.png'/>
+<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/r-welcome%20to%20creativeGan.png'/>
 
 
 </div>
@@ -32,7 +33,7 @@ so seems like im good at giving you welcome and greeting's but let focus on some
 
 <div>
 <hr>
-<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/README-portrait%20of%20female%20draconian,%20intricate,%20elegant.png'/>
+<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/r-portrait%20of%20female%20draconian,%20intricate,%20elegant.png'/>
 
 
 </div>
@@ -45,7 +46,7 @@ I always wanted to see what if an astronaut could ride a horse so let see
 
 <div>
 <hr>
-<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/README-an%20astronaut%20riding%20a%20horse.png'/>
+<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/r-an%20astronaut%20riding%20a%20horse.png'/>
 
 
 </div>
@@ -58,7 +59,7 @@ so let see what is deep space in galaxy looking like
 
 <div>
 <hr>
-<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/README-beautiful%20stars%20in%20galaxy%20space.png'/>
+<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/r-beautiful%20stars%20in%20galaxy%20space.png'/>
 
 
 </div>
