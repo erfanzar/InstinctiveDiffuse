@@ -56,9 +56,10 @@ def main(page: ft.Page):
         ft.Switch(label=f'{option}', value=False, active_color=ft.colors.CYAN, thumb_color=ft.colors.CYAN,
                   tooltip=f'{option} is an Option to use for generating Method ') for option
         in options]
-    check_box = ft.Column(
+    check_box = ft.Container(ft.Column(
         check_box_items
-    )
+    ), height=0, width=0, animate_size=ft.animation.Animation(400, ft.AnimationCurve.EASE_IN_TO_LINEAR),
+        bgcolor=ft.colors.CYAN_50, border_radius=35)
 
     def close_banner(e=None):
         page.banner.open = False
@@ -155,12 +156,24 @@ def main(page: ft.Page):
         ]
     )
 
-    # Main Display
+    def show_options(e):
+        vanished = True if check_box.width == 0 else False
+
+        check_box.height = 0 if not vanished else 450
+        check_box.width = 0 if not vanished else 300
+        page.update()
+
     col1_items = [
+        ft.Container(ft.ElevatedButton(
+            "Options",
+            on_click=show_options,
+        ), margin=fixed_left_margin),
         check_box,
         main_column,
-        tool_tip
+        tool_tip,
+
     ]
+    # Main Display
     col1 = ft.Column(
         col1_items,
         alignment=ft.MainAxisAlignment.START,
