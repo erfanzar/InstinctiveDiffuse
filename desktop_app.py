@@ -1,15 +1,34 @@
 import dataclasses
 import math
+import subprocess
 import time
 
+import erutils
 import flet as ft
 
 DEBUG = True
+model_path = ''
+
+
+def f_load():
+    try:
+
+        from engine import config_model
+    except ModuleNotFoundError as err:
+        erutils.fprint(err)
+        module = f"{err}".replace('No module named \'', '')[:-1]
+        erutils.fprint(f'Downloading Module : {module}')
+        ot = subprocess.run(f'pip install {module}')
+        f_load()
+
+
+f_load()
+
 if not DEBUG:
-    generator_kwargs = dict(use_version=True, version='v4', use_realistic=False, size=size, nsfw_allowed=nsfw_allowed,
-                            out_dir=out_dir)
+    generator_kwargs = dict(use_version=True, version='v4', use_realistic=False, size=512, nsfw_allowed=False,
+                            out_dir='tools/assets')
     device = 'cuda'
-    grc = config_model(model_path=r'{}'.format(opt.model_path), nsfw_allowed=True, device=device)
+    grc = config_model(model_path=r'{}'.format(model_path), nsfw_allowed=True, device=device)
 
 options = [
     'real',
@@ -111,7 +130,10 @@ def main(page: ft.Page):
 
                 )
             )
-
+            prompt = field.value
+            for t in check_box_items:
+                prompt += t.label + ',' if t.value else ''
+            print(prompt)
             field.value = ""
             update_progress_bar()
             image.image_src = 'GC.png'
