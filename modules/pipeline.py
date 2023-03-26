@@ -22,21 +22,21 @@ logger = logging.get_logger(__name__)
 __version__: Optional[str] = '1.13.1'
 LOADABLE_CLASSES: Optional[Dict] = {
     "diffusers": {
-        "ModelMixin": ["save_pretrained", "from_pretrained"],
-        "SchedulerMixin": ["save_pretrained", "from_pretrained"],
-        "DiffusionPipeline": ["save_pretrained", "from_pretrained"],
-        "OnnxRuntimeModel": ["save_pretrained", "from_pretrained"],
+        "ModelMixin": ["save_static_model", "load_static_model"],
+        "SchedulerMixin": ["save_static_model", "load_static_model"],
+        "DiffusionPipeline": ["save_static_model", "load_static_model"],
+        "OnnxRuntimeModel": ["save_static_model", "load_static_model"],
     },
     "transformers": {
-        "PreTrainedTokenizer": ["save_pretrained", "from_pretrained"],
-        "PreTrainedTokenizerFast": ["save_pretrained", "from_pretrained"],
-        "PreTrainedModel": ["save_pretrained", "from_pretrained"],
-        "FeatureExtractionMixin": ["save_pretrained", "from_pretrained"],
-        "ProcessorMixin": ["save_pretrained", "from_pretrained"],
-        "ImageProcessingMixin": ["save_pretrained", "from_pretrained"],
+        "PreTrainedTokenizer": ["save_static_model", "load_static_model"],
+        "PreTrainedTokenizerFast": ["save_static_model", "load_static_model"],
+        "PreTrainedModel": ["save_static_model", "load_static_model"],
+        "FeatureExtractionMixin": ["save_static_model", "load_static_model"],
+        "ProcessorMixin": ["save_static_model", "load_static_model"],
+        "ImageProcessingMixin": ["save_static_model", "load_static_model"],
     },
     "onnxruntime.training": {
-        "ORTModule": ["save_pretrained", "from_pretrained"],
+        "ORTModule": ["save_static_model", "load_static_model"],
     },
 }
 
@@ -102,7 +102,7 @@ class ConfigMixin:
             deprecation_message = "It is deprecated to pass a pretrained model name or path to `from_config`."
             if "Scheduler" in cls.__name__:
                 deprecation_message += (
-                    f"If you were trying to load a scheduler, please use {cls}.from_pretrained(...) instead."
+                    f"If you were trying to load a scheduler, please use {cls}.load_static_model(...) instead."
                     " Otherwise, please make sure to pass a configuration dictionary instead. This functionality will"
                     " be removed in v1.0.0."
                 )
@@ -376,7 +376,7 @@ class PipeLine(ConfigMixin):
             # set models
             setattr(self, name, module)
 
-    def save_pretrained(
+    def save_static_model(
             self,
             save_directory: Union[str, os.PathLike],
             safe_serialization: bool = False,
@@ -458,12 +458,12 @@ class PipeLine(ConfigMixin):
         return torch.device("cpu")
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path: Optional[Union[str, os.PathLike]], **kwargs):
+    def load_static_model(cls, pretrained_model_name_or_path: Optional[Union[str, os.PathLike]], **kwargs):
 
         resume_download = kwargs.pop("resume_download", False)
         force_download = kwargs.pop("force_download", False)
         proxies = kwargs.pop("proxies", None)
-        # local_files_only = kwargs.pop("local_files_only", HF_HUB_OFFLINE)
+
         use_auth_token = kwargs.pop("use_auth_token", None)
         revision = kwargs.pop("revision", None)
         from_flax = kwargs.pop("from_flax", False)
@@ -477,8 +477,6 @@ class PipeLine(ConfigMixin):
         return_cached_folder = kwargs.pop("return_cached_folder", False)
         variant = kwargs.pop("variant", None)
 
-        # 1. Download the checkpoints and configs
-        # use snapshot download here to get it working from from_pretrained
         if not os.path.isdir(pretrained_model_name_or_path):
             config_dict = cls.load_config(
                 pretrained_model_name_or_path,

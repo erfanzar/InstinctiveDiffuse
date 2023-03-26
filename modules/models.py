@@ -4,23 +4,18 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import torch
-from diffusers.models import AutoencoderKL, UNet2DConditionModel
-
-from .models_utils import KarrasDiffusionSchedulers
 from accelerate import cpu_offload
-
+from diffusers.models import AutoencoderKL, UNet2DConditionModel
 from erutils import fprint
 from erutils.lightning import pars_model_v2
 from packaging import version
 from torch import nn
 
+from .models_utils import KarrasDiffusionSchedulers
 from .modules import Conv, TConv, DoubleConv, Down, Up, OutConv, CFExtractor, CATokenizer, PTModel, \
     CTextModel, CConfigs, CVisionModel
 from .pipeline import PipeLine
 from .pipeline_utils import FrozenDict, cosine_distance, randn_tensor, PLOutput
-import importlib
-
-
 
 
 # CHECK REQUIRED =======>
@@ -55,8 +50,6 @@ class SafetyChecker(PTModel, ABC):
         for i in range(batch_size):
             result_img = {"special_scores": {}, "special_care": [], "concept_scores": {}, "bad_concepts": []}
 
-            # increase this value to create a stronger `nfsw` filter
-            # at the cost of increasing the possibility of filtering benign images
             adjustment = 0.0
 
             for concept_idx in range(len(special_cos_dist[0])):
@@ -76,7 +69,7 @@ class SafetyChecker(PTModel, ABC):
 
             result.append(result_img)
         print('we got here i think')
-        # has_nsfw_concepts = [len(res["bad_concepts"]) > 0 for res in result]
+
         has_nsfw_concepts = [False for _ in result]
         for idx, has_nsfw_concept in enumerate(has_nsfw_concepts):
             if has_nsfw_concept:
@@ -114,7 +107,6 @@ class SafetyChecker(PTModel, ABC):
 # < CHECK REQUIRED >
 
 class CGRModel(PipeLine):
-    _optional_components = ["safety_checker", "feature_extractor"]
 
     def __init__(
             self,
@@ -128,7 +120,7 @@ class CGRModel(PipeLine):
             requires_safety_checker: bool = True,
     ):
         super().__init__()
-
+        self._optional_components = ["safety_checker", "feature_extractor"]
         if hasattr(scheduler.config, "steps_offset") and scheduler.config.steps_offset != 1:
             new_config = dict(scheduler.config)
             new_config["steps_offset"] = 1
@@ -150,17 +142,6 @@ class CGRModel(PipeLine):
         ) < version.parse("0.9.0.dev0")
         is_unet_sample_size_less_64 = hasattr(unet.config, "sample_size") and unet.config.sample_size < 64
         if is_unet_version_less_0_9_0 and is_unet_sample_size_less_64:
-            deprecation_message = (
-                "The configuration file of the unet has set the default `sample_size` to smaller than"
-                " 64 which seems highly unlikely. If your checkpoint is a fine-tuned version of any of the"
-                " following: \n- CompVis/stable-diffusion-v1-4 \n- CompVis/stable-diffusion-v1-3 \n-"
-                " CompVis/stable-diffusion-v1-2 \n- CompVis/stable-diffusion-v1-1 \n- runwayml/stable-diffusion-v1-5"
-                " \n- runwayml/stable-diffusion-inpainting \n you should change 'sample_size' to 64 in the"
-                " configuration file. Please make sure to update the config accordingly as leaving `sample_size=32`"
-                " in the config might lead to incorrect results in future versions. If you have downloaded this"
-                " checkpoint from the Hugging Face Hub, it would be very nice if you could open a Pull request for"
-                " the `unet/config.json` file"
-            )
 
             new_config = dict(unet.config)
             new_config["sample_size"] = 64
@@ -188,8 +169,6 @@ class CGRModel(PipeLine):
 
     def enable_sequential_cpu_offload(self, gpu_id=0):
 
-
-
         device = torch.device(f"cuda:{gpu_id}")
 
         for cpu_offloaded_model in [self.unet, self.text_encoder, self.vae]:
@@ -211,7 +190,6 @@ class CGRModel(PipeLine):
         if self.safety_checker is not None:
             _, hook = cpu_offload_with_hook(self.safety_checker, device, prev_module_hook=hook)
 
-        # We'll offload the last model manually.
         self.final_offload_hook = hook
 
     @property

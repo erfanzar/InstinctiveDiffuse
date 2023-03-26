@@ -25,7 +25,7 @@ def config_model(model_path: Union[str, os.PathLike],
                  device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu',
                  nsfw_allowed: Optional[bool] = True):
     data_type = torch.float32 if device != 'cuda' else torch.float16
-    model = CGRModel.from_pretrained(model_path, torch_dtype=data_type).to(device)
+    model = CGRModel.load_static_model(model_path, torch_dtype=data_type).to(device)
     if nsfw_allowed:
         model.safety_checker.to('cpu')
 
@@ -67,5 +67,6 @@ if __name__ == "__main__":
         raise ValueError(
             f'You tried to get image with size {opt.size} but our model currently work at maximum {MAXIMUM_RES} try lower resolution')
     grc = config_model(model_path=r'{}'.format(opt.model_path), nsfw_allowed=True, device=opt.device)
+    print(grc)
     main(model=grc, step=opt.step,
          prompts=opt.prompts, size=(opt.size, opt.size))
