@@ -1,81 +1,61 @@
 # CreativeGAN
 
 CreativeGAN is a Text to image Model you can give the prompt that you want to see the image of it and you will get the
-image of that and you also can specify which version you want to see your image in
+image of that, and you also can specify which version you want to see your image in
+
+my goal is an AI free for everybody and totally open source
+and I provide this model usage at
+
+- Web Application
+- Desktop User Interface
+- Engine and Command line (CLI)
+
 # 🚀CreativeGAN Gallery🚀
+
 you can also take a look at generated images with [CreativeGAN Gallery🚀](https://www.ai.motionnation.net/)
+
 # About CreativeGAN 👋
 
-Oh hello there im CreativeGAN
-an AI tool that can turn your words into picture
-and I can ensure you that I can do thing that you will fall in love with
+Hi there, my name is Creative Gan and I am an open source AI designed to make machine learning accessible and free for
+everybody. My ultimate goal is to provide a powerful, yet easy to use platform that enables people from all walks of
+life to harness the power of artificial intelligence and machine learning in creating and developing innovative
+solutions.
 
-for the start let me show you an image
+At the core of my design is the mission to enable anyone to use machine learning to solve complex problems by providing
+an array of features in a user-friendly manner. I am compatible with desktop UI, web applications, and can be utilized
+through a command line engine. My versatility is what makes me stand out from the rest and sets me apart as a great
+option for anyone looking to create practical and optimized solutions for their business, research or personal use.
 
-but wait a bit before we begin I do like to tell you where my power comes from
-a person who called erfan got an idea to fine tune and change a bit of journey
-AI algo and customize that and yea so I have to tell you im here after training in erfan gym only for 1 week for
-8 epochs and 56000 steps and im here BTW let get start
+My development team believes in the democratization of technology and knowledge, hence why we have made Creative Gan
+free to use for everyone. We strongly believe that nobody should be left behind when it comes to this cutting-edge
+technology, and our open source platform is our contribution to achieving that goal.
 
+If you are looking for an AI that values your time and resources, with powerful tools that can help you build
+state-of-the-art solutions with using stable diffusion , then Creative Gan is the perfect AI for you.
 
-<div>
-<hr>
-<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/r-welcome%20to%20creativeGan.png'/>
+# Desktop UI
 
+in the new version I created a user interface that you can simpy use model with
 
-</div>
-<h3 style="margin-left: 30%">PROMPT :  an art to welcome to people who are new to CreativeGAN</h3>
-<hr>
+this ui is built with using python [`flet`](https://flet.dev/)
 
-so seems like im good at giving you welcome and greeting's but let focus on something more detailed like
+```shell
+python3 desktop_app.py
+```
 
+## HuggingFace
 
+[Hugging Face](https://huggingface.co/) is an open-source software library created to make Natural Language Processing (
+NLP) accessible to
+developers. It provides a variety of pre-trained models and tools for developers to build state-of-the-art NLP systems.
+Hugging Face offers easy-to-use APIs that allow developers to integrate its models with their applications quickly and
+efficiently.
 
-<div>
-<hr>
-<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/r-portrait%20of%20female%20draconian,%20intricate,%20elegant.png'/>
+I used hugging face for a part of model (`CLIP`)
+and for the sake of better training we edited a part of the models that we got from huggingface (`CLIP Text Model`)
 
-
-</div>
-<h3 style="margin-left: 30%">PROMPT :  Portrait of Elegant,beautiful Female dressed gold cloths</h3>
-<hr>
-
-even in details seems like I can do pretty good JOB but let get of this atmosphere
-
-I always wanted to see what if an astronaut could ride a horse so let see
-
-<div>
-<hr>
-<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/r-an%20astronaut%20riding%20a%20horse.png'/>
-
-
-</div>
-<h3 style="margin-left: 30%">PROMPT : An astronaut riding a horse out of earth atmosphere</h3>
-<hr>
-
-but I always wanted to go more and more and more and ......
-
-so let see what is deep space in galaxy looking like 
-
-<div>
-<hr>
-<img style='margin-left: 30%' width='500' height='500' src='https://ai.motionnation.net/pics/r-beautiful%20stars%20in%20galaxy%20space.png'/>
-
-
-</div>
-<h3 style="margin-left: 30%">PROMPT : beautiful stars in the galaxy somewhere around milkiway</h3>
-<hr>
-
-and yea seems like I can work pretty cool right ?
-
-I can't wait to bring your words or ideas into pictures but im not hosted yet 
-
-I think you should wait a little for that or if you want to use me locally in you machine you have to email erfan 
-
-to get my weight
-
-see you latter good Bye  👋
-
+to make it faster cause there was some implementation that wasn't required and a part of algorithm was created by myself
+and huggingface does not include those algorithms
 ## API Reference
 
 TODO

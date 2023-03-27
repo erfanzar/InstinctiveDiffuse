@@ -141,7 +141,13 @@ def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRMod
     else:
         raise ValueError('Wrong input for prompt input should be string or a list of strings')
 
-    generated_sample = model(prompt=prompt, height=size[0], width=size[1], nsfw_allowed=nsfw_allowed)
+    for i, iva in enumerate(model(prompt=prompt, height=size[0], width=size[1], nsfw_allowed=nsfw_allowed)):
+        generated_sample = iva
+
+        if isinstance(iva, int):
+            if iva < 50:
+                yield iva
+
     if task == 'PIL':
         return generated_sample.images[0]
     elif task == 'dict':
@@ -159,7 +165,7 @@ def generate(prompt: typing.Union[str, list[str]], model: typing.Optional[CGRMod
         return True
     elif task == 'save':
         try:
-
+            print(generated_sample.nsfw_content_detected)
             if isinstance(org_p, list):
                 for v in range(len(generated_sample.images)):
                     generated_sample.images[v].save(f'{out_dir}/{org_p[v]}.{image_format}')

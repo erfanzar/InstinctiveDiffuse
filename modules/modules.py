@@ -1,3 +1,4 @@
+import copy
 import gc
 import inspect
 import itertools
@@ -14,7 +15,7 @@ from distutils import dist
 from enum import Enum
 from functools import partial
 from typing import Optional, Union, List, Tuple, Dict, Any, Callable, NamedTuple, overload
-import copy
+
 import PIL
 import numpy as np
 import torch
@@ -22,7 +23,6 @@ import torch.nn.functional as F
 from accelerate import init_empty_weights, infer_auto_device_map, dispatch_model
 from accelerate.utils import save_offload_index, load_offloaded_weights, set_module_tensor_to_device
 from diffusers.models.modeling_utils import load_state_dict
-from huggingface_hub import CommitOperationAdd
 from torch import Tensor
 from torch import nn as nn
 from torchvision.transforms.functional import center_crop
@@ -54,7 +54,6 @@ from transformers.models.clip.image_processing_clip import convert_to_rgb
 from transformers.models.clip.modeling_clip import CLIPVisionEmbeddings, CLIPAttention, CLIPTextEmbeddings, CLIPMLP, \
     CLIPTextModelWithProjection, CLIPVisionModelWithProjection, CLIPEncoder, CLIPVisionTransformer, CLIPTextTransformer
 from transformers.models.clip.tokenization_clip import get_pairs, bytes_to_unicode, whitespace_clean
-from transformers.pytorch_utils import torch_int_div
 from transformers.tokenization_utils import _insert_one_token_to_ordered_list, Trie, ADDED_TOKENS_FILE, \
     SPECIAL_TOKENS_MAP_FILE, TOKENIZER_CONFIG_FILE
 from transformers.tokenization_utils_base import FULL_TOKENIZER_FILE, get_fast_tokenizer_file, LARGE_INTEGER, \
@@ -84,6 +83,8 @@ MODEL_CARD_NAME = "modelcard.json"
 PILImageResampling = PIL.Image
 
 
+def torch_int_div(tensor1, tensor2):
+    return torch.div(tensor1, tensor2, rounding_mode="floor")
 class CharSpan(NamedTuple):
     start: int
     end: int

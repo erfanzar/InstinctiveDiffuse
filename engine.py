@@ -4,8 +4,8 @@ import typing
 from typing import Union, List, Optional
 
 import numpy as np
-from tqdm.auto import tqdm
 import torch
+from tqdm.auto import tqdm
 
 from baseline import generate, MAXIMUM_RES
 from modules.models import CGRModel
@@ -14,7 +14,7 @@ pars = argparse.ArgumentParser()
 
 pars.add_argument('--model-path', '--model-path', default=r'E:\CGRModel-checkpoints', type=str)
 pars.add_argument('--prompts', '--prompts', type=str, nargs='+',
-                  default='prompts.txt')
+                  default='A surreal landscape with floating islands and a giant, glowing moon, in the style of Hayao Miyazaki ,smooth,realistic,sharp,detailed')
 pars.add_argument('--save-dir', '--save-dir', type=str, default='out')
 pars.add_argument('--step', '--step', type=int, default=4)
 pars.add_argument('--device', '--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu')
@@ -25,13 +25,13 @@ opt = pars.parse_args()
 def config_model(model_path: Union[str, os.PathLike],
                  device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu',
                  nsfw_allowed: Optional[bool] = True):
-    data_type = torch.float32 if device != 'cuda' else torch.float16
+
+    data_type = torch.float32
     model = CGRModel.load_static_model(model_path, torch_dtype=data_type).to(device)
     if nsfw_allowed:
         model.safety_checker.to('cpu')
 
     return model
-
 
 
 def main(model: Optional[CGRModel], prompts: Union[str, List[str], os.PathLike], size: Optional[typing.Tuple],
@@ -42,7 +42,7 @@ def main(model: Optional[CGRModel], prompts: Union[str, List[str], os.PathLike],
 
     if isinstance(prompts, str) and not prompts.endswith('.txt'):
 
-        generate(prompt=prompts, model=model, **kwargs)
+        _ = [f for f in generate(prompt=prompts, model=model, **kwargs)]
 
     elif isinstance(prompts, list) or prompts.endswith('.txt'):
 
@@ -69,16 +69,16 @@ def main(model: Optional[CGRModel], prompts: Union[str, List[str], os.PathLike],
                             fx = ix
                             break
                     prp = prp[:fx]
-                generate(prompt=prp.tolist(), model=model, **kwargs)
+                _ = [f for f in generate(prompt=prp.tolist(), model=model, **kwargs)]
         else:
-            generate(prompt=prompts, model=model, **kwargs)
+            _ = [f for f in generate(prompt=prompts, model=model, **kwargs)]
 
 
 if __name__ == "__main__":
     if opt.size > MAXIMUM_RES:
         raise ValueError(
-            f'You tried to get image with size {opt.size} but our model currently work at maximum {MAXIMUM_RES} try lower resolution')
+            f'You tried to get image with size {opt.size} but our model currently work at'
+            f' maximum {MAXIMUM_RES} try lower resolution')
     grc = config_model(model_path=r'{}'.format(opt.model_path), nsfw_allowed=True, device=opt.device)
-    print(grc)
     main(model=grc, step=opt.step,
          prompts=opt.prompts, size=(opt.size, opt.size))

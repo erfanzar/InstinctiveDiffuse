@@ -22,21 +22,38 @@ logger = logging.get_logger(__name__)
 __version__: Optional[str] = '1.13.1'
 LOADABLE_CLASSES: Optional[Dict] = {
     "diffusers": {
-        "ModelMixin": ["save_static_model", "load_static_model"],
-        "SchedulerMixin": ["save_static_model", "load_static_model"],
-        "DiffusionPipeline": ["save_static_model", "load_static_model"],
-        "OnnxRuntimeModel": ["save_static_model", "load_static_model"],
+        "ModelMixin": ["save_static_model", "from_pretrained"],
+        "SchedulerMixin": ["save_static_model", "from_pretrained"],
+        "DiffusionPipeline": ["save_static_model", "from_pretrained"],
+        "OnnxRuntimeModel": ["save_static_model", "from_pretrained"],
     },
     "transformers": {
-        "PreTrainedTokenizer": ["save_static_model", "load_static_model"],
-        "PreTrainedTokenizerFast": ["save_static_model", "load_static_model"],
-        "PreTrainedModel": ["save_static_model", "load_static_model"],
-        "FeatureExtractionMixin": ["save_static_model", "load_static_model"],
-        "ProcessorMixin": ["save_static_model", "load_static_model"],
-        "ImageProcessingMixin": ["save_static_model", "load_static_model"],
+        "PreTrainedTokenizer": ["save_static_model", "from_pretrained"],
+        "PreTrainedTokenizerFast": ["save_static_model", "from_pretrained"],
+        "PreTrainedModel": ["save_static_model", "from_pretrained"],
+        "FeatureExtractionMixin": ["save_static_model", "from_pretrained"],
+        "ProcessorMixin": ["save_static_model", "from_pretrained"],
+        "ImageProcessingMixin": ["save_static_model", "from_pretrained"],
     },
     "onnxruntime.training": {
-        "ORTModule": ["save_static_model", "load_static_model"],
+        "ORTModule": ["save_static_model", "from_pretrained"],
+    },
+}
+
+LOADABLE_CLASSES_V2: Optional[Dict] = {
+    "diffusers": {
+        "ModelMixin": ["save_static_model", "load_from_local"],
+        "SchedulerMixin": ["save_static_model", "load_from_local"],
+        "DiffusionPipeline": ["save_static_model", "load_from_local"],
+    },
+    "transformers": {
+        "PreTrainedTokenizer": ["save_static_model", "load_from_local"],
+        "PreTrainedTokenizerFast": ["save_static_model", "load_from_local"],
+        "PreTrainedModel": ["save_static_model", "load_from_local"],
+        "ImageProcessingMixin": ["save_static_model", "load_from_local"],
+    },
+    "onnxruntime.training": {
+        "ORTModule": ["save_static_model", "__"],
     },
 }
 
@@ -754,17 +771,13 @@ class PipeLine(ConfigMixin):
                         and transformers_version >= version.parse("4.20.0")
                 )
 
-                # When loading a transformers model, if the device_map is None, the weights will be initialized as opposed to diffusers.
-                # To make default loading faster we set the `low_cpu_mem_usage=low_cpu_mem_usage` flag which is `True` by default.
-                # This makes sure that the weights won't be initialized which significantly speeds up loading.
+
                 if is_diffusers_model or is_transformers_model:
                     loading_kwargs["device_map"] = device_map
                     loading_kwargs["variant"] = model_variants.pop(name, None)
                     if from_flax:
                         loading_kwargs["from_flax"] = True
 
-                    # the following can be deleted once the minimum required `transformers` version
-                    # is higher than 4.27
                     if (
                             is_transformers_model
                             and loading_kwargs["variant"] is not None
@@ -776,22 +789,19 @@ class PipeLine(ConfigMixin):
                     elif is_transformers_model and loading_kwargs["variant"] is None:
                         loading_kwargs.pop("variant")
 
-                    # if `from_flax` and model is transformer model, can currently not load with `low_cpu_mem_usage`
                     if not (from_flax and is_transformers_model):
                         loading_kwargs["low_cpu_mem_usage"] = low_cpu_mem_usage
                     else:
                         loading_kwargs["low_cpu_mem_usage"] = False
 
-                # check if the module is in a subdirectory
                 if os.path.isdir(os.path.join(cached_folder, name)):
                     loaded_sub_model = load_method(os.path.join(cached_folder, name), **loading_kwargs)
                 else:
-                    # else load from the root directory
+
                     loaded_sub_model = load_method(cached_folder, **loading_kwargs)
 
-            init_kwargs[name] = loaded_sub_model  # UNet(...), # DiffusionSchedule(...)
+            init_kwargs[name] = loaded_sub_model
 
-        # 4. Potentially add passed objects if expected
         missing_modules = set(expected_modules) - set(init_kwargs.keys())
         passed_modules = list(passed_class_obj.keys())
         optional_modules = pipeline_class._optional_components
