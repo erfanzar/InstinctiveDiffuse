@@ -40,12 +40,12 @@ options = [
 
 
 @dataclasses.dataclass
-class Cash:
+class Cache:
     ...
 
 
 def main(page: ft.Page):
-    cash = Cash()
+    cache = Cache()
     img_hw: int = 680
     page.window_min_width = 1760
     page.window_min_height = 920
@@ -56,7 +56,7 @@ def main(page: ft.Page):
     default_device = 'cpu'
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.update()
-    cash.selected_option = options[0]
+    cache.selected_option = options[0]
     fixed_left_margin = ft.margin.only(25, 0, 0, 0)
     field = ft.TextField(
         height=80,
@@ -114,11 +114,11 @@ def main(page: ft.Page):
     )
     min_res = 512
     max_res = 2048
-    cash.res = min_res
+    cache.res = min_res
 
     def res_slider_on_change(e):
-        cash.res = int(e.control.value)
-        model_info_box_items[-2].value = f'Resolution : {cash.res} x {cash.res}'
+        cache.res = int(e.control.value)
+        model_info_box_items[-2].value = f'Resolution : {cache.res} x {cache.res}'
         page.update()
 
     model_info_box_items = [
@@ -149,7 +149,7 @@ def main(page: ft.Page):
                 label='Model Device'
             )
         ),
-        ft.Text(f'Resolution : {cash.res} x {cash.res}'),
+        ft.Text(f'Resolution : {cache.res} x {cache.res}'),
         ft.Container(
             ft.Slider(
                 min=min_res, max=max_res, divisions=(max_res - min_res) // 8, label='{value} x {value}',
@@ -231,17 +231,17 @@ def main(page: ft.Page):
         col1_items[0].controls[1].content.disabled = True
         page.update()
 
-        cash.dtype = model_info_box_items[0].content.value if model_info_box_items[
+        cache.dtype = model_info_box_items[0].content.value if model_info_box_items[
                                                                   0].content.value is not None else default_dtype
-        cash.device = model_info_box_items[1].content.value if model_info_box_items[
+        cache.device = model_info_box_items[1].content.value if model_info_box_items[
                                                                    1].content.value is not None else default_device
-        print(cash.device)
-        print(cash.dtype)
+        print(cache.device)
+        print(cache.dtype)
         try:
-            cash.model_ckpt = config_model(model_path=r'{}'.format(model_path), nsfw_allowed=True, device=cash.device)
+            cache.model_ckpt = config_model(model_path=r'{}'.format(model_path), nsfw_allowed=True, device=cache.device)
 
-            cash.GENERATOR_CONFIG = dict(
-                model=cash.model_ckpt,
+            cache.GENERATOR_CONFIG = dict(
+                model=cache.model_ckpt,
                 out_dir='tools/assets',
                 use_version=True, version='v4',
                 use_realistic=False, image_format='png',
@@ -265,8 +265,8 @@ def main(page: ft.Page):
 
         def update_progress_bar(prompt_):
             try:
-                for i in generate(prompt=prompt_, size=(cash.res, cash.res),
-                                  **cash.GENERATOR_CONFIG):
+                for i in generate(prompt=prompt_, size=(cache.res, cache.res),
+                                  **cache.GENERATOR_CONFIG):
                     cnt = int(i) * 2
                     cnt = cnt if cnt != 0 else 2
                     progress_bar_inited.value = cnt * 0.01
@@ -276,7 +276,7 @@ def main(page: ft.Page):
                 col1_items[0].controls[1].content.disabled = False
                 open_dlg_modal(None)
 
-        if field.value != '' and hasattr(cash, 'model_ckpt'):
+        if field.value != '' and hasattr(cache, 'model_ckpt'):
             col1_items.append(
                 ft.Container(
                     ft.Column(
