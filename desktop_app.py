@@ -1,3 +1,29 @@
+import json
+import os
+
+
+def f_load():
+    try:
+        import dataclasses
+        import math
+        import subprocess
+
+        import erutils
+        import flet as ft
+        import torch.cuda
+
+        from baseline import generate
+        from engine import config_model
+    except ModuleNotFoundError as err:
+        print(err)
+        module = f"{err}".replace('No module named \'', '')[:-1]
+        print(f'Downloading Module : {module}')
+        ot = subprocess.run(f'pip install {module}')
+        f_load()
+
+
+f_load()
+
 import dataclasses
 import math
 import subprocess
@@ -9,22 +35,7 @@ import torch.cuda
 from baseline import generate
 
 DEBUG = False
-model_path = 'E:\CGRModel-checkpoints'
 
-
-def f_load():
-    try:
-
-        from engine import config_model
-    except ModuleNotFoundError as err:
-        erutils.fprint(err)
-        module = f"{err}".replace('No module named \'', '')[:-1]
-        erutils.fprint(f'Downloading Module : {module}')
-        ot = subprocess.run(f'pip install {module}')
-        f_load()
-
-
-f_load()
 from engine import config_model
 
 options = [
@@ -41,6 +52,12 @@ options = [
 
 @dataclasses.dataclass
 class Cache:
+    def __init__(self):
+        self.GENERATOR_CONFIG = None
+        self.model_path = None
+        self.default_dtype = torch.float32
+        self.default_device = 'cpu'
+
     ...
 
 
@@ -52,6 +69,7 @@ def main(page: ft.Page):
     page.window_resizable = False
     page.theme_mode = 'light'
     page.title = "Creative Gan"
+    cache.model_path = None
     default_dtype = torch.float32
     default_device = 'cpu'
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
@@ -206,56 +224,84 @@ def main(page: ft.Page):
         ],
     )
 
-    def close_dlg(e):
-        dlg_modal.open = False
+    def close_dlg_out_memory(e):
+        dlg_modal_out_memory.open = False
         page.update()
 
-    dlg_modal = ft.AlertDialog(
+    def close_dlg_model_not_selected(e):
+        dlg_modal_model_not_selected.open = False
+        page.update()
+
+    dlg_modal_out_memory = ft.AlertDialog(
         modal=True,
         title=ft.Text("Error"),
         content=ft.Text("You Got cuda out of memory error try to use cpu"),
         actions=[
-            ft.TextButton("Ok", on_click=close_dlg),
+            ft.TextButton("Ok", on_click=close_dlg_out_memory),
         ],
         actions_alignment=ft.MainAxisAlignment.END,
         on_dismiss=lambda e: print("Modal dialog dismissed!"),
     )
 
-    def open_dlg_modal(e):
-        page.dialog = dlg_modal
-        dlg_modal.open = True
+    dlg_modal_model_not_selected = ft.AlertDialog(
+        modal=True,
+        title=ft.Text("Error"),
+        content=ft.Text("You should select model path to load first"),
+        actions=[
+            ft.TextButton("Ok", on_click=close_dlg_model_not_selected),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+        on_dismiss=lambda e: print("Modal dialog dismissed!"),
+    )
+
+    def open_dlg_modal_out_memory(e):
+        page.dialog = dlg_modal_out_memory
+        dlg_modal_out_memory.open = True
         page.update()
+
+    def open_dlg_modal_model_not_selected(e):
+        page.dialog = dlg_modal_model_not_selected
+        dlg_modal_model_not_selected.open = True
+        page.update()
+
+    def file_picker(e: ft.FilePickerResultEvent):
+        path_to_json = ''.join(f + os.sep for f in e.files[0].path.split(os.sep)[:-1])
+        cache.model_path = path_to_json
+        #
 
     def load_model_(e):
-        col1_items[0].controls[2].content.disabled = True
-        col1_items[0].controls[1].content.disabled = True
+        model_info_box.height = 0
+        model_info_box.width = 0
         page.update()
+        if cache.model_path is not None:
+            col1_items[0].controls[2].content.disabled = True
+            col1_items[0].controls[1].content.disabled = True
+            page.update()
 
-        cache.dtype = model_info_box_items[0].content.value if model_info_box_items[
-                                                                  0].content.value is not None else default_dtype
-        cache.device = model_info_box_items[1].content.value if model_info_box_items[
-                                                                   1].content.value is not None else default_device
-        print(cache.device)
-        print(cache.dtype)
-        try:
-            cache.model_ckpt = config_model(model_path=r'{}'.format(model_path), nsfw_allowed=True, device=cache.device)
+            cache.dtype = model_info_box_items[0].content.value if model_info_box_items[
+                                                                       0].content.value is not None else default_dtype
+            cache.device = model_info_box_items[1].content.value if model_info_box_items[
+                                                                        1].content.value is not None else default_device
+            print(cache.device)
+            print(cache.dtype)
+            try:
+                cache.model_ckpt = config_model(model_path=r'{}'.format(cache.model_path), nsfw_allowed=True,
+                                                device=cache.device)
 
-            cache.GENERATOR_CONFIG = dict(
-                model=cache.model_ckpt,
-                out_dir='tools/assets',
-                use_version=True, version='v4',
-                use_realistic=False, image_format='png',
-                nsfw_allowed=True,
-                use_check_prompt=False, task='save'
-            )
-        except torch.cuda.OutOfMemoryError as err:
-            col1_items[0].controls[2].content.disabled = False
-            col1_items[0].controls[1].content.disabled = False
-            open_dlg_modal(None)
-
-    def close_dlg(e):
-        dlg_modal.open = False
-        page.update()
+                cache.GENERATOR_CONFIG = dict(
+                    model=cache.model_ckpt,
+                    out_dir='tools/assets',
+                    use_version=True, version='v4',
+                    use_realistic=False, image_format='png',
+                    nsfw_allowed=True,
+                    use_check_prompt=False, task='save'
+                )
+            except torch.cuda.OutOfMemoryError as err:
+                col1_items[0].controls[2].content.disabled = False
+                col1_items[0].controls[1].content.disabled = False
+                open_dlg_modal_out_memory(None)
+        else:
+            open_dlg_modal_model_not_selected(None)
 
     def add_clicked(e):
         max_c_width = 300
@@ -274,7 +320,7 @@ def main(page: ft.Page):
             except torch.cuda.OutOfMemoryError as err:
                 col1_items[0].controls[2].content.disabled = False
                 col1_items[0].controls[1].content.disabled = False
-                open_dlg_modal(None)
+                open_dlg_modal_out_memory(None)
 
         if field.value != '' and hasattr(cache, 'model_ckpt'):
             col1_items.append(
@@ -353,6 +399,11 @@ def main(page: ft.Page):
         model_info_box.width = 0 if not vanished else 300
         page.update()
 
+    file_picker_object = ft.FilePicker(on_result=file_picker)
+    page.overlay.append(file_picker_object)
+    page.update()
+    # def load_file_picker(e):
+    #     file_picker_object.pick_files()
     col1_items = [
         ft.Row([
             ft.Container(ft.ElevatedButton(
@@ -367,6 +418,11 @@ def main(page: ft.Page):
             ft.Container(ft.ElevatedButton(
                 "Load Model",
                 on_click=load_model_,
+                disabled=False,
+            ), margin=fixed_left_margin),
+            ft.Container(ft.ElevatedButton(
+                "Load Model File",
+                on_click=lambda _: file_picker_object.pick_files(allowed_extensions=['json', 'yaml', 'erutils']),
                 disabled=False,
             ), margin=fixed_left_margin)
         ]),
