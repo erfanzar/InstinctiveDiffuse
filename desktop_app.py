@@ -69,7 +69,7 @@ def main(page: ft.Page):
     img_hw: int = 680
     page.window_min_width = 1760
     page.window_min_height = 920
-    page.window_resizable = False
+    page.window_resizable = True
     page.theme_mode = 'light'
     page.title = "Creative Gan"
     cache.model_path = None
