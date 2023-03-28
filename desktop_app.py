@@ -1,4 +1,3 @@
-import json
 import os
 
 
@@ -20,15 +19,19 @@ def f_load():
         print(f'Downloading Module : {module}')
         ot = subprocess.run(f'pip install {module}')
         f_load()
+    except FileNotFoundError as err:
+        print(err)
+        module = f"{err}".replace('No module named \'', '')[:-1]
+        print(f'Downloading Module : {module}')
+        ot = subprocess.run(f'pip install {module}')
+        f_load()
 
 
 f_load()
 
 import dataclasses
 import math
-import subprocess
 
-import erutils
 import flet as ft
 import torch.cuda
 
