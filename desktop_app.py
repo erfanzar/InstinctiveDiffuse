@@ -1,5 +1,5 @@
 import os
-import subprocess
+
 
 def f_load():
     try:
@@ -70,7 +70,9 @@ def main(page: ft.Page):
     page.window_min_width = 1760
     page.window_min_height = 920
     page.window_resizable = True
-    page.theme_mode = 'light'
+    page.theme_mode = ft.ThemeMode.SYSTEM
+    # page.window_skip_task_bar = True
+
     page.title = "Creative Gan"
     cache.model_path = None
     default_dtype = torch.float32
@@ -461,6 +463,7 @@ def main(page: ft.Page):
         alignment=ft.MainAxisAlignment.START,
         horizontal_alignment=ft.CrossAxisAlignment.START
     )
+
     col2 = ft.Column(
         [
             image, theme_changer
