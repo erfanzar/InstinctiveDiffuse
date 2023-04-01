@@ -1,6 +1,6 @@
-# CreativeGAN
+# StableGAN
 
-CreativeGAN is a Text to image Model you can give the prompt that you want to see the image of it and you will get the
+StableGAN is a Text to image Model you can give the prompt that you want to see the image of it and you will get the
 image of that, and you also can specify which version you want to see your image in
 
 my goal is an AI free for everybody and totally open source
@@ -10,13 +10,9 @@ and I provide this model usage at
 - Desktop User Interface
 - Engine and Command line (CLI)
 
-# 🚀CreativeGAN Gallery🚀
+# About StableGAN 👋
 
-you can also take a look at generated images with [CreativeGAN Gallery🚀](https://www.ai.motionnation.net/)
-
-# About CreativeGAN 👋
-
-Hi there, my name is Creative Gan and I am an open source AI designed to make machine learning accessible and free for
+Hi there, my name is StableGAN and I am an open source AI designed to make machine learning accessible and free for
 everybody. My ultimate goal is to provide a powerful, yet easy to use platform that enables people from all walks of
 life to harness the power of artificial intelligence and machine learning in creating and developing innovative
 solutions.
@@ -26,12 +22,12 @@ an array of features in a user-friendly manner. I am compatible with desktop UI,
 through a command line engine. My versatility is what makes me stand out from the rest and sets me apart as a great
 option for anyone looking to create practical and optimized solutions for their business, research or personal use.
 
-My development team believes in the democratization of technology and knowledge, hence why we have made Creative Gan
+My development team believes in the democratization of technology and knowledge, hence why we have made StableGAN
 free to use for everyone. We strongly believe that nobody should be left behind when it comes to this cutting-edge
 technology, and our open source platform is our contribution to achieving that goal.
 
 If you are looking for an AI that values your time and resources, with powerful tools that can help you build
-state-of-the-art solutions with using stable diffusion , then Creative Gan is the perfect AI for you.
+state-of-the-art solutions with using stable diffusion , then StableGAN is the perfect AI for you.
 
 # Desktop UI
 
