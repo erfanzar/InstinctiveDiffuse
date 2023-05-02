@@ -1,0 +1,32 @@
+{
+  "_class_name": "GCRModel",
+  "_diffusers_version": "0.7.2",
+  "feature_extractor": [
+    "modules.modules",
+    "CFExtractor"
+  ],
+  "safety_checker": [
+    "stable_diffusion",
+    "StableDiffusionSafetyChecker"
+  ],
+  "scheduler": [
+    "modules.modules",
+    "PNDMScheduler"
+  ],
+  "text_encoder": [
+    "modules.modules",
+    "CTextModel"
+  ],
+  "tokenizer": [
+    "modules.modules",
+    "CATokenizer"
+  ],
+  "unet": [
+    "diffusers",
+    "UNet2DConditionModel"
+  ],
+  "vae": [
+    "diffusers",
+    "AutoencoderKL"
+  ]
+}
