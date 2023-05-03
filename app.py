@@ -149,4 +149,4 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     text_box_.submit(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
                      outputs=[text_box_, image_class_])
     clean_.click(fn=lambda _: '', outputs=[text_box_], inputs=[noise_])
-demo.queue().launch(server_name='0.0.0.0', show_tips=False, show_error=True)
+demo.queue().launch(server_name='DreamCafe', share=True, show_tips=False, show_error=True)
