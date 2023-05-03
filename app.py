@@ -55,8 +55,8 @@ def config_model(model_path: Union[str, os.PathLike],
     return model_
 
 
-# model = config_model(model_path='erfanzar/StableGAN', device='cuda', nsfw_allowed=False, data_type=torch.float16)
-model = None
+model = config_model(model_path='erfanzar/StableGAN', device='cuda', nsfw_allowed=False, data_type=torch.float16)
+# model = None
 
 
 # c_generate = partial(generate, use_version=True,
