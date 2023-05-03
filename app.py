@@ -70,7 +70,7 @@ def run(options, prompt, data_type, device, resolution, generate_noise):
     print(f'OPTIONS : {options}\nPROMPT : {prompt}\nDATA TYPE : {data_type}\nDEVICE : {device}\n'
           f'RESOLUTION : {resolution}\nGENERATE NOISE : {generate_noise}')
 
-    options = ','.join(o.lower() for o in options)
+    options = ' ' + ','.join(o.lower() for o in options)
     prompt += options
 
     print(f'PROMPT : {prompt}')
@@ -139,7 +139,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                 ' what you want for you and help you to have better time and living life with using'
                 ' Artificial Intelligence and Pushing Technology Beyond Limits'
             )
-            image_class_ = gr.Image(label='Generated Image').style(container=True, height=860, width=860, )
+            image_class_ = gr.Image(label='Generated Image').style(container=True, height=860, )
             with gr.Row():
                 progress_bar = gr.Progress(track_tqdm=True, )
                 with gr.Column(scale=4):
