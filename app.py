@@ -153,4 +153,4 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     text_box_.submit(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
                      outputs=[text_box_, image_class_], preprocess=False)
     clean_.click(fn=lambda _: '', outputs=[text_box_], inputs=[noise_])
-demo.queue().launch(share=False, show_tips=False, show_error=True)
+demo.queue().launch(share=True, show_tips=False, show_error=True)
