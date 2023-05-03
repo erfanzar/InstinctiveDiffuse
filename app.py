@@ -43,7 +43,7 @@ def config_model(model_path: Union[str, os.PathLike],
     if device == 'cuda' or device == 'cpu':
         model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type).to(device)
     elif device == 'auto':
-        model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type, use_safetensors=True,
+        model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type, use_safetensors=False,
                                                          device_map=device)
     else:
         raise ValueError
