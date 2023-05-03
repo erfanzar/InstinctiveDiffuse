@@ -3,6 +3,15 @@ from torchvision.utils import make_grid
 import torch.nn as nn
 import torch
 from modules.modules import *
+from importlib.util import find_spec
+
+
+def spec_is_available(spec: str):
+    res = find_spec(spec)
+    if res is not None:
+        return True
+    else:
+        return False
 
 
 def create_noise(n_sample: int, input_dim: int, device='cuda:0' if torch.cuda.is_available() else 'cpu'):

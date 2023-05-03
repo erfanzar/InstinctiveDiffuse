@@ -316,7 +316,7 @@ def main(page: ft.Page):
 
         def update_progress_bar(prompt_):
             try:
-                for i in generate(prompt=prompt_, size=(cache.res, cache.res),
+                for i in generate(prompt=prompt_, size=(cache.res, cache.res), use_bar=True,
                                   **cache.GENERATOR_CONFIG):
                     cnt = int(i) * 2
                     cnt = cnt if cnt != 0 else 2

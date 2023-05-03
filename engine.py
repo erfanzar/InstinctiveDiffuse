@@ -9,18 +9,19 @@ from tqdm.auto import tqdm
 
 from baseline import generate, MAXIMUM_RES
 from modules.models import CGRModel
+from dataclasses import field, dataclass
+from transformers import HfArgumentParser
 
-pars = argparse.ArgumentParser()
 
-pars.add_argument('--model-path', '--model-path', default=r'E:\CGRModel-checkpoints', type=str)
-pars.add_argument('--prompts', '--prompts', type=str, nargs='+',
-                  default='A surreal landscape with floating islands and a giant, glowing moon, in the style'
-                          ' of Hayao Miyazaki ,smooth,realistic,sharp,detailed')
-pars.add_argument('--save-dir', '--save-dir', type=str, default='out')
-pars.add_argument('--step', '--step', type=int, default=4)
-pars.add_argument('--device', '--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu')
-pars.add_argument('--size', '--size', type=int, default=512)
-opt = pars.parse_args()
+@dataclass
+class Arguments:
+    model_path: str = field(default=r'E:\CGRModel-checkpoints')
+    prompts: str = field(default='A surreal landscape with floating islands and a giant, glowing moon, in the style'
+                                 ' of Hayao Miyazaki ,smooth,realistic,sharp,detailed', )
+    save_dir: str = field(default='out')
+    step: str = field(default=4)
+    device: str = field(default='cuda' if torch.cuda.is_available() else 'cpu')
+    size: str = field(default=512)
 
 
 def config_model(model_path: Union[str, os.PathLike],
@@ -74,6 +75,7 @@ def main(model: Optional[CGRModel], prompts: Union[str, List[str], os.PathLike],
 
 
 if __name__ == "__main__":
+    opt = HfArgumentParser(Arguments).parse_args_into_dataclasses()[0]
     if opt.size > MAXIMUM_RES:
         raise ValueError(
             f'You tried to get image with size {opt.size} but our model currently work at'

@@ -1,24 +1,80 @@
 import gradio as gr
 from transformers import logging
-from baseline import generate
+from baseline import gradio_generate
 from functools import partial
-
-from engine import config_model
+from diffusers import StableDiffusionPipeline
+from typing import Union, Optional, List
+import torch
+import os
 
 logger = logging.get_logger(__name__)
-logging.set_verbosity_debug()
-logger.setLevel('DEBUG')
-model = config_model(model_path='', device='cpu', nsfw_allowed=False)
-c_generate = partial(generate, use_version=True,
-                     version='v4', nsfw_allowed=False,
-                     use_check_prompt=False,
-                     )
+logging.set_verbosity_error()
+logger.setLevel('ERROR')
+
+
+def get_data_type(spec):
+    if spec == 'Float 16':
+        return torch.float16
+    elif spec == 'BFloat 16':
+        return torch.bfloat16
+    elif spec == 'Float 32':
+        return torch.float32
+    elif spec == 'TF32':
+        # Not supported YET
+        return torch.float32
+    else:
+        raise ValueError
+
+
+def get_device(spec):
+    if spec == 'CPU':
+        return 'cpu'
+    if spec == 'CUDA':
+        return 'cuda:0'
+    if spec == 'TPU':
+        return 'xla:0'
+    else:
+        raise
+
+
+def config_model(model_path: Union[str, os.PathLike],
+                 device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu',
+                 nsfw_allowed: Optional[bool] = True, data_type: torch.dtype = torch.float32):
+    if device == 'cuda' or device == 'cpu':
+        model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type).to(device)
+    elif device == 'auto':
+        model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type, use_safetensors=True,
+                                                         device_map=device)
+    else:
+        raise ValueError
+    if nsfw_allowed:
+        print('Offloading the Safety checker')
+        model_.safety_checker.to('cpu')
+
+    return model_
+
+
+model = config_model(model_path='erfanzar/StableGAN', device='auto', nsfw_allowed=False, data_type=torch.float16)
+
+
+# c_generate = partial(generate, use_version=True,
+#                      nsfw_allowed=False,
+#                      use_check_prompt=False, task='PIL'
+#                      )
 
 
 def run(options, prompt, data_type, device, resolution, generate_noise):
     print(f'OPTIONS : {options}\nPROMPT : {prompt}\nDATA TYPE : {data_type}\nDEVICE : {device}\n'
           f'RESOLUTION : {resolution}\nGENERATE NOISE : {generate_noise}')
-    return ''
+
+    options = ','.join(o.lower() for o in options)
+    prompt += options
+    print(f'PROMPT : {prompt}')
+    image = gradio_generate(model=model, prompt=prompt, size=(resolution, resolution), use_version=True,
+                            nsfw_allowed=False, use_realistic=False,
+                            use_check_prompt=False, task='PIL', use_bar=False)
+
+    return '', [image]
 
 
 # if __name__ == "__main__":
@@ -29,11 +85,14 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                                      label='Data Type',
                                      allow_custom_value=False, multiselect=False,
                                      info='The Data type for AI to Generate Image Model will use Float 16 by default'
-                                          ' cause many GPUS dont support BFloat 16 and TF32')
+                                          ' cause many GPUS dont support BFloat 16 and TF32 '
+                                          '[This state doesnt make change for users ITs a Loading Option Only]')
             device_ = gr.Dropdown(choices=['TPU', 'CUDA', 'CPU'], value='CUDA', label='Device ',
                                   allow_custom_value=False,
                                   multiselect=False,
-                                  info='The Accelerator to be used to Generate image its on GPU or CUDA by default ')
+                                  info='The Accelerator to be used to Generate image its on GPU or CUDA by default '
+                                       '[This state doesnt make change for users ITs a Loading Option Only]',
+                                  visible=True)
             options_ = gr.CheckboxGroup(choices=[
                 'Real',
                 'Realistic',
@@ -47,14 +106,15 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                 'Atheistic',
                 'Simplified',
                 'Davin-chi',
-                'CameraMan'
+                'CameraMan',
+                'Midjourney-v4 Style'
             ], info='The Modes that will AI takes in as the Idea to Generate Image From them And its required'
                     ' a lot of playing around to know which Options '
-                    'working good with each other or which is good to use')
-            resolution_ = gr.Slider(label='Resolution', value=768,
-                                    maximum=4096, minimum=512, step=1,
+                    'working good with each other or which is good to use', label='Generate Options')
+            resolution_ = gr.Slider(label='Resolution', value=512,
+                                    maximum=4096, minimum=256, step=8,
                                     info='Resolution to be passed to AI to generate image with that resolution '
-                                         'the minimum resolution is 512x512 and the maximum is 4094x4094 which '
+                                         'the minimum resolution is 256x256 and the maximum is 4094x4094 which '
                                          'our current servers wont support more than 860x860 images cause of lak of'
                                          ' Compute Unit and GPU Power')
             noise_ = gr.Slider(label='Generate Noise', value=0.0,
@@ -65,16 +125,28 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                                     ' only available in debug mode')
 
         with gr.Column(scale=4):
-            image_class_ = gr.AnnotatedImage(label='Generated Image').style(height=640)
+            gr.Markdown(
+                '# DreamCafe Powered By StableGAN from LucidBrains 🧠\n'
+                '## About LucidBrains(AlmubdieunTech)\n'
+                'LucidBrains is a platform that makes AI accessible and easy to use for everyone.'
+                ' Our mission is to empower individuals and businesses'
+                'with the tools they need to harness the power of AI and machine learning,'
+                ' without requiring a background in data science or anything we will just build'
+                ' what you want for you and help you to have better time and living life with using'
+                ' Artificial Intelligence and Pushing Technology Beyond Limits'
+            )
+            image_class_ = gr.Gallery(label='Generated Image').style(container=True, height='auto')
             with gr.Row():
+                progress_bar = gr.Progress(track_tqdm=True, )
                 with gr.Column(scale=4):
                     text_box_ = gr.Textbox(placeholder='A Dragon Flying above clouds', show_label=True, label='Prompt')
                 with gr.Column(scale=1):
                     button_ = gr.Button('Generate Image')
                     clean_ = gr.Button('Clean')
 
-    button_.click(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_], outputs=[text_box_])
+    button_.click(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
+                  outputs=[text_box_, image_class_])
     text_box_.submit(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
-                     outputs=[text_box_])
+                     outputs=[text_box_, image_class_])
     clean_.click(fn=lambda _: '', outputs=[text_box_], inputs=[noise_])
-demo.queue().launch()
+demo.queue().launch(server_name='0.0.0.0', show_tips=False, show_error=True)
