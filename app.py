@@ -41,9 +41,10 @@ def config_model(model_path: Union[str, os.PathLike],
                  device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu',
                  nsfw_allowed: Optional[bool] = True, data_type: torch.dtype = torch.float32):
     if device == 'cuda' or device == 'cpu':
-        model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type).to(device)
+        model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type).to(
+            device)
     elif device == 'auto':
-        model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type, use_safetensors=False,
+        model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type,
                                                          device_map=device)
     else:
         raise ValueError
