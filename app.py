@@ -6,6 +6,14 @@ from diffusers import StableDiffusionPipeline
 from typing import Union, Optional, List
 import torch
 import os
+from engine import config_model as cm
+import argparse
+
+parse = argparse.ArgumentParser(description='DreamCafe')
+
+parse.add_argument('-m', '--model_path', default='erfanzar/StableGAN')
+args = parse.parse_args()
+model_name = args.model_path
 
 logger = logging.get_logger(__name__)
 logging.set_verbosity_error()
@@ -40,22 +48,23 @@ def get_device(spec):
 def config_model(model_path: Union[str, os.PathLike],
                  device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu',
                  nsfw_allowed: Optional[bool] = True, data_type: torch.dtype = torch.float32):
-    if device == 'cuda' or device == 'cpu':
-        model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type).to(
-            device)
-    elif device == 'auto':
-        model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type,
-                                                         device_map=device)
+    if not nsfw_allowed:
+        if device == 'cuda' or device == 'cpu':
+            model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type).to(
+                device)
+        elif device == 'auto':
+            model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type,
+                                                             device_map=device, )
+        else:
+            raise ValueError
     else:
-        raise ValueError
-    if nsfw_allowed:
-        print('Offloading the Safety checker')
-        model_.safety_checker.to('cpu')
-
+        model_ = cm(model_path, 'cuda', True, torch.float16)
     return model_
 
 
-model = config_model(model_path='erfanzar/StableGAN', device='cuda', nsfw_allowed=False, data_type=torch.float16)
+model = config_model(model_path=model_name, device='cuda', nsfw_allowed=True, data_type=torch.float16)
+
+
 # model = None
 
 
