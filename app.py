@@ -78,7 +78,7 @@ model = config_model(model_path=model_name, device='cuda', nsfw_allowed=True, da
 
 
 def run(options, prompt, data_type, device, resolution, generate_noise):
-    resolution = resolution if resolution < 820 else 820
+    resolution = resolution if resolution < 880 else 880
     print(f'OPTIONS : {options}\nPROMPT : {prompt}\nDATA TYPE : {data_type}\nDEVICE : {device}\n'
           f'RESOLUTION : {resolution}\nGENERATE NOISE : {generate_noise}')
 
