@@ -97,18 +97,7 @@ def run(options, prompt, data_type, device, resolution, generate_noise):
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
     with gr.Row():
         with gr.Column(scale=1):
-            data_type_ = gr.Dropdown(choices=['Float 32', 'BFloat 16', 'Float 16', 'TF32'], value='Float 16',
-                                     label='Data Type',
-                                     allow_custom_value=False, multiselect=False,
-                                     info='The Data type for AI to Generate Image Model will use Float 16 by default'
-                                          ' cause many GPUS dont support BFloat 16 and TF32 '
-                                          '[This state doesnt make change for users ITs a Loading Option Only]')
-            device_ = gr.Dropdown(choices=['TPU', 'CUDA', 'CPU'], value='CUDA', label='Device ',
-                                  allow_custom_value=False,
-                                  multiselect=False,
-                                  info='The Accelerator to be used to Generate image its on GPU or CUDA by default '
-                                       '[This state doesnt make change for users ITs a Loading Option Only]',
-                                  visible=True)
+
             options_ = gr.CheckboxGroup(choices=[
                 'Real',
                 'Realistic',
@@ -142,6 +131,18 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                                          'the minimum resolution is 256x256 and the maximum is 4094x4094 which '
                                          'our current servers wont support more than 860x860 images cause of lak of'
                                          ' Compute Unit and GPU Power')
+            data_type_ = gr.Dropdown(choices=['Float 32', 'BFloat 16', 'Float 16', 'TF32'], value='Float 16',
+                                     label='Data Type',
+                                     allow_custom_value=False, multiselect=False,
+                                     info='The Data type for AI to Generate Image Model will use Float 16 by default'
+                                          ' cause many GPUS dont support BFloat 16 and TF32 '
+                                          '[This state doesnt make change for users ITs a Loading Option Only]')
+            device_ = gr.Dropdown(choices=['TPU', 'CUDA', 'CPU'], value='CUDA', label='Device ',
+                                  allow_custom_value=False,
+                                  multiselect=False,
+                                  info='The Accelerator to be used to Generate image its on GPU or CUDA by default '
+                                       '[This state doesnt make change for users ITs a Loading Option Only]',
+                                  visible=True)
             noise_ = gr.Slider(label='Generate Noise', value=0.0,
                                maximum=1.0, minimum=0.0, step=0.01,
                                info='Generate to be passed to AI in main algorythm '
