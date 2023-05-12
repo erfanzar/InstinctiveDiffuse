@@ -65,7 +65,7 @@ def config_model(model_path: Union[str, os.PathLike],
     return model_
 
 
-model = config_model(model_path=model_name, device='cuda', nsfw_allowed=True, data_type=torch.float16)
+model = config_model(model_path=model_name, device='cuda', nsfw_allowed=False, data_type=torch.float16)
 
 
 # model = None
