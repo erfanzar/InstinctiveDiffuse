@@ -123,7 +123,16 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                 'Simplified',
                 'Davin-chi',
                 'CameraMan',
-                'Midjourney Style'
+                'Midjourney Style',
+                'HyperRealistic',
+                'Octane Render',
+                'Cinematic Lighting',
+                'Cinematic Quality',
+                'Dark Cyan And Light Crimson',
+                'DreamLike',
+                'Artstation',
+                'Volumetric Lighting',
+                'AlbumCovers'
             ], info='The Modes that will AI takes in as the Idea to Generate Image From them And its required'
                     ' a lot of playing around to know which Options '
                     'working good with each other or which is good to use', label='Generate Options')
