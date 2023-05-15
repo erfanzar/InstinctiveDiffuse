@@ -74,12 +74,12 @@ def main(model: Optional[CGRModel], prompts: Union[str, List[str], os.PathLike],
             _ = [f for f in generate(prompt=prompts, model=model, **kwargs)]
 
 
-if __name__ == "__main__":
-    opt = HfArgumentParser(Arguments).parse_args_into_dataclasses()[0]
-    if opt.size > MAXIMUM_RES:
-        raise ValueError(
-            f'You tried to get image with size {opt.size} but our model currently work at'
-            f' maximum {MAXIMUM_RES} try lower resolution')
-    grc = config_model(model_path=r'{}'.format(opt.model_path), nsfw_allowed=True, device=opt.device)
-    main(model=grc, step=opt.step,
-         prompts=opt.prompts, size=(opt.size, opt.size))
+# if __name__ == "__main__":
+#     opt = HfArgumentParser(Arguments).parse_args_into_dataclasses()[0]
+#     if opt.size > MAXIMUM_RES:
+#         raise ValueError(
+#             f'You tried to get image with size {opt.size} but our model currently work at'
+#             f' maximum {MAXIMUM_RES} try lower resolution')
+#     grc = config_model(model_path=r'{}'.format(opt.model_path), nsfw_allowed=True, device=opt.device)
+#     main(model=grc, step=opt.step,
+#          prompts=opt.prompts, size=(opt.size, opt.size))

@@ -6,10 +6,20 @@ from diffusers import StableDiffusionPipeline
 from typing import Union, Optional, List
 import torch
 import os
+from engine import config_model as cm
+import argparse
+
+parse = argparse.ArgumentParser(description='DreamCafe')
+
+parse.add_argument('-m', '--model_path', default='erfanzar/StableGAN')
+args = parse.parse_args()
+model_name = args.model_path
 
 logger = logging.get_logger(__name__)
 logging.set_verbosity_error()
 logger.setLevel('ERROR')
+
+AUTH_TOKEN = os.getenv('AUTH_TOKEN', 'NONE')
 
 
 def get_data_type(spec):
@@ -40,22 +50,22 @@ def get_device(spec):
 def config_model(model_path: Union[str, os.PathLike],
                  device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu',
                  nsfw_allowed: Optional[bool] = True, data_type: torch.dtype = torch.float32):
-    if device == 'cuda' or device == 'cpu':
-        model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type).to(
-            device)
-    elif device == 'auto':
-        model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type,
-                                                         device_map=device)
+    ck = dict(use_auth_token=AUTH_TOKEN) if AUTH_TOKEN != "NONE" else dict()
+    if not nsfw_allowed:
+        if device == 'cuda' or device == 'cpu':
+            model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type,
+                                                             **ck).to(device)
+        elif device == 'auto':
+            model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type,
+                                                             device_map=device, **ck)
+        else:
+            raise ValueError
     else:
-        raise ValueError
-    if nsfw_allowed:
-        print('Offloading the Safety checker')
-        model_.safety_checker.to('cpu')
-
+        model_ = cm(model_path, 'cuda', True, torch.float16)
     return model_
 
 
-model = config_model(model_path='erfanzar/StableGAN', device='cuda', nsfw_allowed=False, data_type=torch.float16)
+model = config_model(model_path=model_name, device='cuda', nsfw_allowed=False, data_type=torch.float16)
 
 
 # model = None
@@ -68,7 +78,7 @@ model = config_model(model_path='erfanzar/StableGAN', device='cuda', nsfw_allowe
 
 
 def run(options, prompt, data_type, device, resolution, generate_noise):
-    resolution = resolution if resolution < 820 else 820
+    resolution = resolution if resolution < 880 else 880
     print(f'OPTIONS : {options}\nPROMPT : {prompt}\nDATA TYPE : {data_type}\nDEVICE : {device}\n'
           f'RESOLUTION : {resolution}\nGENERATE NOISE : {generate_noise}')
 
@@ -87,18 +97,7 @@ def run(options, prompt, data_type, device, resolution, generate_noise):
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
     with gr.Row():
         with gr.Column(scale=1):
-            data_type_ = gr.Dropdown(choices=['Float 32', 'BFloat 16', 'Float 16', 'TF32'], value='Float 16',
-                                     label='Data Type',
-                                     allow_custom_value=False, multiselect=False,
-                                     info='The Data type for AI to Generate Image Model will use Float 16 by default'
-                                          ' cause many GPUS dont support BFloat 16 and TF32 '
-                                          '[This state doesnt make change for users ITs a Loading Option Only]')
-            device_ = gr.Dropdown(choices=['TPU', 'CUDA', 'CPU'], value='CUDA', label='Device ',
-                                  allow_custom_value=False,
-                                  multiselect=False,
-                                  info='The Accelerator to be used to Generate image its on GPU or CUDA by default '
-                                       '[This state doesnt make change for users ITs a Loading Option Only]',
-                                  visible=True)
+
             options_ = gr.CheckboxGroup(choices=[
                 'Real',
                 'Realistic',
@@ -113,7 +112,16 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                 'Simplified',
                 'Davin-chi',
                 'CameraMan',
-                'Midjourney Style'
+                'Midjourney Style',
+                'HyperRealistic',
+                'Octane Render',
+                'Cinematic Lighting',
+                'Cinematic Quality',
+                'Dark Cyan And Light Crimson',
+                'DreamLike',
+                'Artstation',
+                'Volumetric Lighting',
+                'AlbumCovers'
             ], info='The Modes that will AI takes in as the Idea to Generate Image From them And its required'
                     ' a lot of playing around to know which Options '
                     'working good with each other or which is good to use', label='Generate Options')
@@ -123,6 +131,18 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                                          'the minimum resolution is 256x256 and the maximum is 4094x4094 which '
                                          'our current servers wont support more than 860x860 images cause of lak of'
                                          ' Compute Unit and GPU Power')
+            data_type_ = gr.Dropdown(choices=['Float 32', 'BFloat 16', 'Float 16', 'TF32'], value='Float 16',
+                                     label='Data Type',
+                                     allow_custom_value=False, multiselect=False,
+                                     info='The Data type for AI to Generate Image Model will use Float 16 by default'
+                                          ' cause many GPUS dont support BFloat 16 and TF32 '
+                                          '[This state doesnt make change for users ITs a Loading Option Only]')
+            device_ = gr.Dropdown(choices=['TPU', 'CUDA', 'CPU'], value='CUDA', label='Device ',
+                                  allow_custom_value=False,
+                                  multiselect=False,
+                                  info='The Accelerator to be used to Generate image its on GPU or CUDA by default '
+                                       '[This state doesnt make change for users ITs a Loading Option Only]',
+                                  visible=True)
             noise_ = gr.Slider(label='Generate Noise', value=0.0,
                                maximum=1.0, minimum=0.0, step=0.01,
                                info='Generate to be passed to AI in main algorythm '
@@ -149,13 +169,10 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                 with gr.Column(scale=1):
                     button_ = gr.Button('Generate Image')
                     clean_ = gr.Button('Clean')
-                    stop = gr.Button('Stop')
 
-    event_button = button_.click(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
-                                 outputs=[text_box_, image_class_], preprocess=False)
-    event_text = text_box_.submit(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
-                                  outputs=[text_box_, image_class_], preprocess=False)
+    button_.click(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
+                  outputs=[text_box_, image_class_], preprocess=False)
+    text_box_.submit(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
+                     outputs=[text_box_, image_class_], preprocess=False)
     clean_.click(fn=lambda _: '', outputs=[text_box_], inputs=[noise_])
-    stop.click(fn=None, outputs=None, cancels=[event_text, event_button],inputs=None)
-
 demo.queue().launch(share=True, show_tips=False, show_error=True)
