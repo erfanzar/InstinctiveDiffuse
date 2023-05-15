@@ -111,7 +111,6 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                 'Simplified',
                 'Davin-chi',
                 'CameraMan',
-                'Midjourney Style',
                 'HyperRealistic',
                 'Octane Render',
                 'Cinematic Lighting',
