@@ -55,8 +55,10 @@ def config_model(model_path: Union[str, os.PathLike],
     return model_
 
 
-# model = config_model(model_path='erfanzar/StableGAN', device='cuda', nsfw_allowed=False, data_type=torch.float16)
-model = None
+model = config_model(model_path='erfanzar/StableGAN', device='cuda', nsfw_allowed=False, data_type=torch.float16)
+
+
+# model = None
 
 
 # c_generate = partial(generate, use_version=True,
@@ -70,7 +72,7 @@ def run(options, prompt, data_type, device, resolution, generate_noise):
     print(f'OPTIONS : {options}\nPROMPT : {prompt}\nDATA TYPE : {data_type}\nDEVICE : {device}\n'
           f'RESOLUTION : {resolution}\nGENERATE NOISE : {generate_noise}')
 
-    options = ','.join(o.lower() for o in options)
+    options = ' ' + ','.join(o.lower() for o in options)
     prompt += options
 
     print(f'PROMPT : {prompt}')
@@ -139,7 +141,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                 ' what you want for you and help you to have better time and living life with using'
                 ' Artificial Intelligence and Pushing Technology Beyond Limits'
             )
-            image_class_ = gr.Image(label='Generated Image').style(container=True, height=860, width=860, )
+            image_class_ = gr.Image(label='Generated Image').style(container=True, height=860, )
             with gr.Row():
                 progress_bar = gr.Progress(track_tqdm=True, )
                 with gr.Column(scale=4):
@@ -147,10 +149,13 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                 with gr.Column(scale=1):
                     button_ = gr.Button('Generate Image')
                     clean_ = gr.Button('Clean')
+                    stop = gr.Button('Stop')
 
-    button_.click(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
-                  outputs=[text_box_, image_class_], preprocess=False)
-    text_box_.submit(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
-                     outputs=[text_box_, image_class_], preprocess=False)
+    event_button = button_.click(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
+                                 outputs=[text_box_, image_class_], preprocess=False)
+    event_text = text_box_.submit(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
+                                  outputs=[text_box_, image_class_], preprocess=False)
     clean_.click(fn=lambda _: '', outputs=[text_box_], inputs=[noise_])
+    stop.click(fn=None, outputs=None, cancels=[event_text, event_button],inputs=None)
+
 demo.queue().launch(share=True, show_tips=False, show_error=True)
