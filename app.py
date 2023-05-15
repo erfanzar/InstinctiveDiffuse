@@ -97,7 +97,6 @@ def run(options, prompt, data_type, device, resolution, generate_noise):
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
     with gr.Row():
         with gr.Column(scale=1):
-
             options_ = gr.CheckboxGroup(choices=[
                 'Real',
                 'Realistic',
@@ -169,10 +168,11 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                 with gr.Column(scale=1):
                     button_ = gr.Button('Generate Image')
                     clean_ = gr.Button('Clean')
-
-    button_.click(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
-                  outputs=[text_box_, image_class_], preprocess=False)
-    text_box_.submit(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
-                     outputs=[text_box_, image_class_], preprocess=False)
+                    stop = gr.Button('Stop')
+    c1 = button_.click(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
+                       outputs=[text_box_, image_class_], preprocess=False)
+    c2 = text_box_.submit(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
+                          outputs=[text_box_, image_class_], preprocess=False)
+    stop.click(fn=None, inputs=None, outputs=None, cancels=[c1, c2])
     clean_.click(fn=lambda _: '', outputs=[text_box_], inputs=[noise_])
 demo.queue().launch(share=True, show_tips=False, show_error=True)
