@@ -38,7 +38,7 @@ model = config_model(model_path='erfanzar/StableGAN', device='cuda', nsfw_allowe
 def run(options, prompt, resolution, num_samples, pr=gr.Progress()):
     resolution = resolution if resolution < 640 else 640
     options = ','.join(osa.lower() for osa in options)
-    options = ' ' + options + ', NFT Collection, NFT, nft'
+    options = ' ' + options + ', NFT Collection, NFT, nft, Extreme High-Angle ,Extreme High-Angle,Extreme High-Angle'
     prompt += options
     images = []
     for _ in pr.tqdm(range(num_samples)):
