@@ -5,9 +5,30 @@ from diffusers import StableDiffusionPipeline
 from typing import Union, Optional, List
 import torch
 import os
-from engine import config_model
+from engine import config_model as cm
 from baseline import gradio_generate
 import time
+
+AUTH_TOKEN = os.getenv('AUTH_TOKEN', 'NONE')
+
+
+def config_model(model_path: Union[str, os.PathLike],
+                 device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu',
+                 nsfw_allowed: Optional[bool] = True, data_type: torch.dtype = torch.float32):
+    ck = dict(use_auth_token=AUTH_TOKEN) if AUTH_TOKEN != "NONE" else dict()
+    if not nsfw_allowed:
+        if device == 'cuda' or device == 'cpu':
+            model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type,
+                                                             **ck).to(device)
+        elif device == 'auto':
+            model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type,
+                                                             device_map=device, **ck)
+        else:
+            raise ValueError
+    else:
+        model_ = cm(model_path, 'cuda', True, torch.float16)
+    return model_
+
 
 load_model = True
 model = config_model(model_path='erfanzar/StableGAN', device='cuda', nsfw_allowed=False,
