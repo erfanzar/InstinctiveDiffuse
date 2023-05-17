@@ -79,13 +79,8 @@ model = config_model(model_path=model_name, device='cuda', nsfw_allowed=False, d
 
 def run(options, prompt, data_type, device, resolution, generate_noise):
     resolution = resolution if resolution < 880 else 880
-    print(f'OPTIONS : {options}\nPROMPT : {prompt}\nDATA TYPE : {data_type}\nDEVICE : {device}\n'
-          f'RESOLUTION : {resolution}\nGENERATE NOISE : {generate_noise}')
-
     options = ' ' + ','.join(o.lower() for o in options)
     prompt += options
-
-    print(f'PROMPT : {prompt}')
     image = gradio_generate(model=model, prompt=prompt, size=(resolution, resolution), use_version=True,
                             nsfw_allowed=False, use_realistic=False,
                             use_check_prompt=False, task='PIL', use_bar=False)
