@@ -35,10 +35,10 @@ model = config_model(model_path='erfanzar/StableGAN', device='cuda', nsfw_allowe
                      data_type=torch.float16) if load_model else None
 
 
-def run(options, prompt, resolution, num_samples, pr=gr.Progress()):
+def run(options, prompt, resolution, num_samples, camera_position, pr=gr.Progress()):
     resolution = resolution if resolution < 640 else 640
     options = ','.join(osa.lower() for osa in options)
-    options = ' ' + options + ', NFT Collection, NFT, nft, Extreme High-Angle ,Extreme High-Angle,Extreme High-Angle'
+    options = ' ' + options + f', NFT Collection, NFT, nft, camera is position {camera_position} | {camera_position}'
     prompt += options
     images = []
     for _ in pr.tqdm(range(num_samples)):
@@ -52,7 +52,38 @@ def run(options, prompt, resolution, num_samples, pr=gr.Progress()):
 
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
     with gr.Row():
-        with gr.Column(scale=1):
+        with gr.Column(scale=2):
+            camera_pos = gr.Dropdown(
+                [
+                    'Low-Angle',
+                    'High-Angle',
+                    'Extreme Low-Angle',
+                    'Extreme High-Angle',
+                    'Side-Angle',
+                    'Birds-Eye-View',
+                    'Eye-Level',
+                    'Closeup Shot',
+                    'Extreme Closeup Shot',
+                    'Medium-Full Shot',
+                    'Full-Body Shot',
+                    'Combining Camera Angle + Shot Type',
+                    'Centered View, Low-Angle, Extreme Closeup',
+                    'Side View, Low-Angle, Closeup',
+                    'High-Angle, Shot From Behind',
+                    'High-Angle, Closeup',
+                    'Reaction Shot',
+                    'Point-of-View Shot',
+                    'Extreme Close-up Shot',
+                    "Bird's Eye View",
+                    'Establishing Shot',
+                    'Far Distance',
+                    'Cowboy Shot',
+                    'American Shot'
+                ],
+                value='Side-Angle',
+                label='Camera Position',
+                max_choices=1
+            )
             options_ = gr.CheckboxGroup(choices=[
                 'Real',
                 'Realistic',
@@ -72,22 +103,23 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                 'DreamLike',
                 'Artstation',
                 'Volumetric Lighting',
-                'AlbumCovers'
+                'AlbumCovers',
+
             ], info='The Modes that will AI takes in as the Idea to Generate Image From them And its required'
                     ' a lot of playing around to know which Options '
                     'working good with each other or which is good to use', label='Generate Options')
-            resolution_ = gr.Slider(label='Resolution', value=416,
-                                    maximum=640, minimum=256, step=8,
+            resolution_ = gr.Slider(label='Resolution', value=512,
+                                    maximum=840, minimum=256, step=8,
                                     info='Resolution to be passed to AI to generate image with that resolution '
-                                         'the minimum resolution is 256x256 and the maximum is 640x640 which '
-                                         'our current servers wont support more than 640x640 images cause of lak of'
+                                         'the minimum resolution is 256x256 and the maximum is 840x840 which '
+                                         'our current servers wont support more than 840x840 images cause of lak of'
                                          ' Compute Unit and GPU Power')
-            collection_sample = gr.Slider(label='Collection Images', value=12,
-                                          maximum=40, minimum=1, step=1,
+            collection_sample = gr.Slider(label='Collection Images', value=5,
+                                          maximum=100, minimum=1, step=1,
                                           info='Number of Images in Collection currently you can\'t generate '
                                                'collections more than 40 images')
 
-        with gr.Column(scale=4, variant='box'):
+        with gr.Column(scale=3, variant='box'):
             gr.Markdown(
                 '# DreamCollection Powered By StableGAN from LucidBrains 🧠\n'
                 '## About LucidBrains(AlmubdieunTech)\n'
@@ -107,7 +139,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                     button_ = gr.Button('Generate Image')
                     stop = gr.Button('Stop')
 
-    inputs = [options_, text_box_, resolution_, collection_sample]
+    inputs = [options_, text_box_, resolution_, collection_sample, camera_pos]
     button_click = button_.click(fn=run, inputs=inputs,
                                  outputs=[text_box_, image_class_], preprocess=False)
     text_box_submit = text_box_.submit(fn=run, inputs=inputs,
