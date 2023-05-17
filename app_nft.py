@@ -114,4 +114,4 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                                        outputs=[text_box_, image_class_], preprocess=False)
     stop.click(fn=None, inputs=None, outputs=None, cancels=[button_click, text_box_submit])
 
-demo.queue().launch(share=False, show_tips=False, show_error=True)
+demo.queue().launch(share=True, show_tips=False, show_error=True)
