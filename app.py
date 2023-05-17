@@ -77,10 +77,10 @@ model = config_model(model_path=model_name, device='cuda', nsfw_allowed=False, d
 #                      )
 
 
-def run(options, prompt, data_type, device, resolution, generate_noise):
+def run(options, prompt, data_type, device, resolution, generate_noise, camera_position):
     resolution = resolution if resolution < 880 else 880
     options = ' ' + ','.join(o.lower() for o in options)
-    prompt += options
+    prompt += options + f'camera is position {camera_position} | {camera_position}'
     image = gradio_generate(model=model, prompt=prompt, size=(resolution, resolution), use_version=True,
                             nsfw_allowed=False, use_realistic=False,
                             use_check_prompt=False, task='PIL', use_bar=False)
@@ -92,6 +92,38 @@ def run(options, prompt, data_type, device, resolution, generate_noise):
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
     with gr.Row():
         with gr.Column(scale=1):
+            camera_pos = gr.Dropdown(
+                [
+                    'Low-Angle',
+                    'High-Angle',
+                    'Extreme Low-Angle',
+                    'Extreme High-Angle',
+                    'Side-Angle',
+                    'Birds-Eye-View',
+                    'Eye-Level',
+                    'Closeup Shot',
+                    'Extreme Closeup Shot',
+                    'Medium-Full Shot',
+                    'Full-Body Shot',
+                    'Combining Camera Angle + Shot Type',
+                    'Centered View, Low-Angle, Extreme Closeup',
+                    'Side View, Low-Angle, Closeup',
+                    'High-Angle, Shot From Behind',
+                    'High-Angle, Closeup',
+                    'Reaction Shot',
+                    'Point-of-View Shot',
+                    'Extreme Close-up Shot',
+                    "Bird's Eye View",
+                    'Establishing Shot',
+                    'Far Distance',
+                    'Cowboy Shot',
+                    'American Shot'
+                ],
+                value='Side-Angle',
+                label='Camera Position',
+                max_choices=1,
+                info='Camera Positioning for Image'
+            )
             options_ = gr.CheckboxGroup(choices=[
                 'Real',
                 'Realistic',
@@ -163,9 +195,10 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                     button_ = gr.Button('Generate Image')
                     clean_ = gr.Button('Clean')
                     stop = gr.Button('Stop')
-    c1 = button_.click(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
+    inputs = [options_, text_box_, data_type_, device_, resolution_, noise_, camera_pos]
+    c1 = button_.click(fn=run, inputs=inputs,
                        outputs=[text_box_, image_class_], preprocess=False)
-    c2 = text_box_.submit(fn=run, inputs=[options_, text_box_, data_type_, device_, resolution_, noise_],
+    c2 = text_box_.submit(fn=run, inputs=inputs,
                           outputs=[text_box_, image_class_], preprocess=False)
     stop.click(fn=None, inputs=None, outputs=None, cancels=[c1, c2])
     clean_.click(fn=lambda _: '', outputs=[text_box_], inputs=[noise_])

@@ -82,7 +82,8 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                 ],
                 value='Side-Angle',
                 label='Camera Position',
-                max_choices=1
+                max_choices=1,
+                info='Camera Positioning for Image'
             )
             options_ = gr.CheckboxGroup(choices=[
                 'Real',
