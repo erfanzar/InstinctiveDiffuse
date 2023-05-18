@@ -77,7 +77,7 @@ model = config_model(model_path=model_name, device='cuda', nsfw_allowed=False, d
 #                      )
 
 
-def run(options, prompt, data_type, device, resolution, generate_noise, camera_position):
+def run(options, prompt, resolution, camera_position):
     resolution = resolution if resolution < 880 else 880
     options = ' ' + ','.join(o.lower() for o in options)
     prompt += options + f'camera is position {camera_position} | {camera_position}'
@@ -195,7 +195,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                     button_ = gr.Button('Generate Image')
                     clean_ = gr.Button('Clean')
                     stop = gr.Button('Stop')
-    inputs = [options_, text_box_, data_type_, device_, resolution_, noise_, camera_pos]
+    inputs = [options_, text_box_, resolution_, camera_pos]
     c1 = button_.click(fn=run, inputs=inputs,
                        outputs=[text_box_, image_class_], preprocess=False)
     c2 = text_box_.submit(fn=run, inputs=inputs,
