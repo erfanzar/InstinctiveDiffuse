@@ -70,7 +70,7 @@ def config_model(model_path: Union[str, os.PathLike],
     ck['device_map'] = 'auto'
     ck['max_memory'] = {i: str(int(available_gpu_memory[i] * 0.90)) + "GiB" for i in range(len(available_gpu_memory))}
     ck["torch_dtype"] = data_type
-
+    print(ck)
     if not nsfw_allowed:
 
         model_ = StableDiffusionPipeline.from_pretrained(model_path,
