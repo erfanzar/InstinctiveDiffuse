@@ -47,13 +47,8 @@ def get_device(spec):
         raise
 
 
-def config_model(model_path: Union[str, os.PathLike],
-                 device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu',
-                 nsfw_allowed: Optional[bool] = True, data_type: torch.dtype = torch.float32):
-    ck = {"use_auth_token": AUTH_TOKEN} if AUTH_TOKEN != "NONE" else {}
-
+def config_model(model_path: Union[str, os.PathLike], data_type: torch.dtype = torch.float16):
     def get_gpu_memory(num_gpus_req=None):
-
         gpu_m = []
         dc = torch.cuda.device_count()
         num_gpus = torch.cuda.device_count() if num_gpus_req is None else min(num_gpus_req, dc)
@@ -67,30 +62,22 @@ def config_model(model_path: Union[str, os.PathLike],
 
     available_gpu_memory = get_gpu_memory()
 
-    ck['device_map'] = 'auto'
-    ck['max_memory'] = {i: str(int(available_gpu_memory[i] * 0.90)) + "GiB" for i in range(len(available_gpu_memory))}
-    ck["torch_dtype"] = data_type
+    ck = {
+        'device_map': 'auto',
+        'max_memory': {i: str(int(available_gpu_memory[i] * 0.90)) + "GiB" for i in range(len(available_gpu_memory))},
+        'torch_dtype': data_type,
+        "use_auth_token": AUTH_TOKEN if AUTH_TOKEN != "NONE" else False
+    }
     print(ck)
-    if not nsfw_allowed:
+    print('Loading Stage Two')
+    model_ = StableDiffusionPipeline.from_pretrained(model_path,
+                                                     **ck)
 
-        model_ = StableDiffusionPipeline.from_pretrained(model_path,
-                                                         **ck)
-
-    else:
-        model_ = cm(model_path, 'cuda', True, torch.float16)
     return model_
 
 
-model = config_model(model_path=model_name, device='cuda', nsfw_allowed=False, data_type=torch.float16)
-
-
-# model = None
-
-
-# c_generate = partial(generate, use_version=True,
-#                      nsfw_allowed=False,
-#                      use_check_prompt=False, task='PIL'
-#                      )
+print('Loading Stage One')
+model = config_model(model_path=model_name, data_type=torch.float16)
 
 
 def run(options, prompt, resolution, camera_position):
@@ -202,7 +189,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                 ' what you want for you and help you to have better time and living life with using'
                 ' Artificial Intelligence and Pushing Technology Beyond Limits'
             )
-            image_class_ = gr.Image(label='Generated Image').style(container=True, height=860, )
+            image_class_ = gr.Image(label='Generated Image').style(container=True, height=740, )
             with gr.Row():
                 progress_bar = gr.Progress(track_tqdm=True, )
                 with gr.Column(scale=4):
