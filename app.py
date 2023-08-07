@@ -50,16 +50,32 @@ def get_device(spec):
 def config_model(model_path: Union[str, os.PathLike],
                  device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu',
                  nsfw_allowed: Optional[bool] = True, data_type: torch.dtype = torch.float32):
-    ck = dict(use_auth_token=AUTH_TOKEN) if AUTH_TOKEN != "NONE" else dict()
+    ck = {"use_auth_token": AUTH_TOKEN} if AUTH_TOKEN != "NONE" else {}
+
+    def get_gpu_memory(num_gpus_req=None):
+
+        gpu_m = []
+        dc = torch.cuda.device_count()
+        num_gpus = torch.cuda.device_count() if num_gpus_req is None else min(num_gpus_req, dc)
+
+        for gpu_id in range(num_gpus):
+            with torch.cuda.device(gpu_id):
+                gpu_properties = torch.cuda.get_device_properties(torch.cuda.current_device())
+                gpu_m.append(
+                    (gpu_properties.total_memory / (1024 ** 3)) - (torch.cuda.memory_allocated() / (1024 ** 3)))
+        return gpu_m
+
+    available_gpu_memory = get_gpu_memory()
+
+    ck['device_map'] = 'auto'
+    ck['max_memory'] = {i: str(int(available_gpu_memory[i] * 0.90)) + "GiB" for i in range(len(available_gpu_memory))}
+    ck["torch_dtype"] = torch.float16
+
     if not nsfw_allowed:
-        if device == 'cuda' or device == 'cpu':
-            model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type,
-                                                             **ck).to(device)
-        elif device == 'auto':
-            model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type,
-                                                             device_map=device, **ck)
-        else:
-            raise ValueError
+
+        model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type,
+                                                         **ck)
+
     else:
         model_ = cm(model_path, 'cuda', True, torch.float16)
     return model_
