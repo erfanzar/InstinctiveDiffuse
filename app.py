@@ -69,11 +69,11 @@ def config_model(model_path: Union[str, os.PathLike],
 
     ck['device_map'] = 'auto'
     ck['max_memory'] = {i: str(int(available_gpu_memory[i] * 0.90)) + "GiB" for i in range(len(available_gpu_memory))}
-    ck["torch_dtype"] = torch.float16
+    ck["torch_dtype"] = data_type
 
     if not nsfw_allowed:
 
-        model_ = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=data_type,
+        model_ = StableDiffusionPipeline.from_pretrained(model_path,
                                                          **ck)
 
     else:
