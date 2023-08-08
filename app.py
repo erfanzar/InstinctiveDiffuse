@@ -2,7 +2,7 @@ import gradio as gr
 from transformers import logging
 from baseline import gradio_generate
 
-from diffusers import StableDiffusionPipeline
+from diffusers import StableDiffusionPipeline, DPMSolverMultistepScheduler
 from typing import Union, Optional, List
 import torch
 import os
@@ -72,7 +72,7 @@ def config_model(model_path: Union[str, os.PathLike], data_type: torch.dtype = t
     model_ = StableDiffusionPipeline.from_pretrained(model_path,
 
                                                      **ck)
-
+    model_.scheduler = DPMSolverMultistepScheduler.from_config(model_.scheduler.config)
     return model_
 
 
