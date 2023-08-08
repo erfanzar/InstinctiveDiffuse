@@ -64,13 +64,13 @@ def config_model(model_path: Union[str, os.PathLike], data_type: torch.dtype = t
 
     ck = {
         'device_map': 'auto',
-        'max_memory': {i: str(int(available_gpu_memory[i] * 0.90)) + "GiB" for i in range(len(available_gpu_memory))},
-        'torch_dtype': data_type,
-        "use_auth_token": AUTH_TOKEN if AUTH_TOKEN != "NONE" else False
+        'max_memory': {i: str(int(available_gpu_memory[i] * 0.95)) + "GiB" for i in range(len(available_gpu_memory))},
+        'torch_dtype': data_type
     }
     print(ck)
     print('Loading Stage Two')
     model_ = StableDiffusionPipeline.from_pretrained(model_path,
+
                                                      **ck)
 
     return model_
