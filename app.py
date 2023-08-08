@@ -12,6 +12,7 @@ import argparse
 parse = argparse.ArgumentParser(description='DreamCafe')
 
 parse.add_argument('-m', '--model_path', default='erfanzar/StableGAN')
+parse.add_argument('-u', '--uba', default=False, action='store_true')
 args = parse.parse_args()
 model_name = args.model_path
 
@@ -69,10 +70,10 @@ def config_model(model_path: Union[str, os.PathLike], data_type: torch.dtype = t
     }
     print(ck)
     print('Loading Stage Two')
-    model_ = StableDiffusionPipeline.from_pretrained(model_path,
 
-                                                     **ck)
-    model_.scheduler = DPMSolverMultistepScheduler.from_config(model_.scheduler.config)
+    model_ = StableDiffusionPipeline.from_pretrained(model_path, **ck)
+    if args.uba:
+        model_.scheduler = DPMSolverMultistepScheduler.from_config(model_.scheduler.config)
     return model_
 
 
