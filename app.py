@@ -65,7 +65,7 @@ def config_model(model_path: Union[str, os.PathLike], data_type: torch.dtype = t
     ck = {
         'device_map': 'auto',
         'max_memory': {i: str(int(available_gpu_memory[i] * 0.95)) + "GiB" for i in range(len(available_gpu_memory))},
-        'torch_dtype': data_type
+        'torch_dtype': torch.bfloat16
     }
     print(ck)
     print('Loading Stage Two')
