@@ -72,6 +72,17 @@ this UI is built using Python [felt](https://flet.dev/)
 python3 desktop_app.py
 ```
 
+## Project Goal
+
+The primary objective of StableGAN is to provide an AI solution that is accessible to everyone and completely open source. The model can be utilized through various interfaces, including:
+
+1. pre-training some cool GenetativeModel for custom use cases
+2. developing and researching Generative Models in Art and multimodal Field
+3. creating an easy-to-use and user-friendly UI to make it using model and evaluating process easier
+4. Engine and Command Line Interface (CLI)
+5. Web Application
+6. Desktop User Interface  
+
 ## HuggingFace and Diffusers
 
 [Hugging Face](https://huggingface.co/) is an open-source software library created to make Natural Language Processing (
