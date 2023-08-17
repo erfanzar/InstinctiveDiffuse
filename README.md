@@ -27,7 +27,7 @@ free to use for everyone. We strongly believe that nobody should be left behind 
 technology and our open-source platform is our contribution to achieving that goal.
 
 If you are looking for an AI that values your time and resources, with powerful tools that can help you build
-state-of-the-art solutions with using stable diffusion, then StableGAN is the perfect AI for you.
+state-of-the-art solutions using stable diffusion, then StableGAN is the perfect AI for you.
 
 # StableGAN in HuggingfaceDiffusers
 
@@ -39,11 +39,34 @@ from diffusers import StableDiffusionPipeline
 pipe_line = StableDiffusionPipeline.from_pretrained('erfanzar/StableGAN')
 ```
 
+# Requierments 
+
+### installing requirements
+
+```shell
+pip install datasets sentencepiece accelerate wandb peft tensorboard transformers gradio diffusers erutils safetensors -q --upgrade
+```
+
+## Simple and EasyUse
+Ui and auto load support some other models instead of StableGAN such as `stabilityai/stable-diffusion-2-1`
+
+```shell
+git clone https://github.com/erfanzar/StableGAN.git
+cd StableGAN
+git pull
+python app.py --model_path='stabilityai/stable-diffusion-2-1'
+```
+
+or using StableGAN
+```shell
+python app.py --model_path='erfanzar/StableGAN'
+```
+
 # Desktop UI
 
-in the new version, I created a user interface that you can simply use model with
+in the new version, I created a user interface that you can simply use a model with
 
-this UI is built using python [felt](https://flet.dev/)
+this UI is built using Python [felt](https://flet.dev/)
 
 ```shell
 python3 desktop_app.py
