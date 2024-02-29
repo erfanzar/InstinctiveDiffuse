@@ -11,7 +11,7 @@ def f_load():
         import flet as ft
         import torch.cuda
 
-        from baseline import generate
+        from instinctive_diffuse.baseline import generate
         from engine import config_model
     except ModuleNotFoundError as err:
         print(err)
@@ -35,7 +35,7 @@ import math
 import flet as ft
 import torch.cuda
 
-from baseline import generate
+from instinctive_diffuse.baseline import generate
 
 DEBUG = False
 

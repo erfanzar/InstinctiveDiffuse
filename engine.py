@@ -1,4 +1,3 @@
-import argparse
 import os
 import typing
 from typing import Union, List, Optional
@@ -7,10 +6,9 @@ import numpy as np
 import torch
 from tqdm.auto import tqdm
 
-from baseline import generate, MAXIMUM_RES
-from modules.models import CGRModel
+from instinctive_diffuse.baseline import generate
+from instinctive_diffuse.modules.models import CGRModel
 from dataclasses import field, dataclass
-from transformers import HfArgumentParser
 
 
 @dataclass

@@ -1,9 +1,9 @@
 import erutils
 import torch
 from flask import Flask, send_file
-from typing import Optional, Dict, List, Union, Tuple
+from typing import Optional, Union, Tuple
 from engine import config_model
-from baseline import generate
+from instinctive_diffuse.baseline import generate
 import socket
 
 COLOR: Optional[str] = erutils.Cp.RED

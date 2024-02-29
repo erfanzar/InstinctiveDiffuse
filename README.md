@@ -1,98 +1,76 @@
-# StableGAN
+# InstinctiveDiffuse
 
-StableGAN is a Text to image Model you can give the prompt that you want to see the image of it and you will get the
-image of that, and you also can specify which version you want to see your image in
+**InstinctiveDiffuse: Your Accessible Text-to-Image Solution**
 
-my goal is an AI free for everybody and open-source
-and I provide this model usage at
+InstinctiveDiffuse stands as a pioneering Text-to-Image model, offering you the power to effortlessly generate images
+from your prompts. Simply articulate the concept you wish to visualize, and behold the image materialize before your
+eyes. What's more, you have the freedom to tailor the rendition to your preference by selecting the desired version.
 
-- Web Application
-- Desktop User Interface
-- Engine and Command line (CLI)
+Our mission is to democratize artificial intelligence, ensuring accessibility for all. InstinctiveDiffuse is proudly
+open-source, available to every individual without cost. We are committed to fostering a community where innovation
+knows no bounds.
 
-# About StableGAN 👋
+Unlock the potential of InstinctiveDiffuse through various interfaces:
 
-Hi there, my name is StableGAN and I am an open-source AI designed to make machine learning accessible and free for
-everybody. My ultimate goal is to provide a powerful, yet easy-to-use platform that enables people from all walks of
-life to harness the power of artificial intelligence and machine learning in creating and developing innovative
-solutions.
+- **Web Application:** Seamlessly generate images through our intuitive online platform.
+- **Desktop User Interface:** Enjoy a user-friendly experience directly on your desktop.
+- **Engine and Command Line (CLI):** Harness the power of InstinctiveDiffuse through command line integration, making it
+  versatile and adaptable to your workflow.
 
-At the core of my design is the mission to enable anyone to use machine learning to solve complex problems by providing
-an array of features in a user-friendly manner. I am compatible with desktop UI, and web applications, and can be utilized
-through a command line engine. My versatility is what makes me stand out from the rest and sets me apart as a great
-option for anyone looking to create practical and optimized solutions for their business, research, or personal use.
+Experience the future of AI with InstinctiveDiffuse – where creativity meets accessibility.
 
-My development team believes in the democratization of technology and knowledge, hence why we have made StableGAN
-free to use for everyone. We strongly believe that nobody should be left behind when it comes to this cutting-edge
-technology and our open-source platform is our contribution to achieving that goal.
+## About InstinctiveDiffuse 👋
 
-If you are looking for an AI that values your time and resources, with powerful tools that can help you build
-state-of-the-art solutions using stable diffusion, then StableGAN is the perfect AI for you.
+InstinctiveDiffuse, an open-source AI engineered to democratize machine learning, rendering it accessible and cost-free
+for all. Our mission is to furnish a robust yet user-friendly platform, empowering individuals from diverse backgrounds
+to leverage artificial intelligence and machine learning for innovative endeavors.
 
-# StableGAN in HuggingfaceDiffusers
+At the heart of our design lies the commitment to democratize machine learning, equipping users with an intuitive
+interface and a plethora of features. Compatible across desktop UI, web applications, and command line engines, our
+versatility distinguishes us as the premier choice for those seeking pragmatic and streamlined solutions for business,
+research, or personal projects.
 
-Here's how to import and use the model
+Our development ethos is rooted in the belief that technology and knowledge should be inclusive, not exclusive. Hence,
+we offer InstinctiveDiffuse as an open-source tool, freely available to all. We staunchly advocate for the notion that
+access to cutting-edge technology should not be gated by financial barriers, and our platform stands as a testament to
+this ethos.
+
+If you seek an AI solution that values your time and resources, equipped with potent tools to craft state-of-the-art
+solutions using stable diffusion techniques, then look no further than InstinctiveDiffuse. Join us in democratizing the
+future of technology, one user at a time.
+
+## InstinctiveDiffuse on HuggingfaceDiffusers: Empowering Text-to-Image Generation
+
+Welcome to InstinctiveDiffuse, now available on HuggingfaceDiffusers, where cutting-edge AI meets effortless usability.
+Our Text-to-Image model is poised to revolutionize your creative process, offering seamless generation of images from
+text prompts.
 
 ```python
 from diffusers import StableDiffusionPipeline
 
-pipe_line = StableDiffusionPipeline.from_pretrained('erfanzar/StableGAN')
+pipe_line = StableDiffusionPipeline.from_pretrained('erfanzar/InstinctiveDiffuse')
 ```
 
-# Requierments 
+## WebUI
 
-### installing requirements
+Up-Coming ...
 
-``` shell
-pip install datasets sentencepiece accelerate wandb peft tensorboard transformers gradio diffusers erutils safetensors -q --upgrade
-```
+## Application
 
-## Simple and EasyUse
-Ui and auto load support some other models instead of StableGAN such as `stabilityai/stable-diffusion-2-1`
+Up-Coming ...
 
-``` shell
-git clone https://github.com/erfanzar/StableGAN.git
-cd StableGAN
-git pull
-python app.py --model_path='stabilityai/stable-diffusion-2-1'
-```
+## CLI(Command line interface)
 
-or using StableGAN
-```shell
-python app.py --model_path='erfanzar/StableGAN'
-```
-
-# Desktop UI
-
-in the new version, I created a user interface that you can simply use a model with
-
-this UI is built using Python [felt](https://flet.dev/)
-
-```shell
-python3 desktop_app.py
-```
+Up-Coming ...
 
 ## Project Goal
 
-The primary objective of StableGAN is to provide an AI solution that is accessible to everyone and completely open source. The model can be utilized through various interfaces, including:
+The primary objective of InstinctiveDiffuse is to provide an AI solution that is accessible to everyone and completely
+open source. The model can be utilized through various interfaces, including:
 
-1. pre-training some cool GenetativeModel for custom use cases
+1. pre-training some cool Generative-Model for custom use cases
 2. developing and researching Generative Models in Art and multimodal Field
 3. creating an easy-to-use and user-friendly UI to make it using the model and evaluation process easier
 4. Engine and Command Line Interface (CLI)
 5. Web Application
-6. Desktop User Interface  
-
-## HuggingFace and Diffusers
-
-[Hugging Face](https://huggingface.co/) is an open-source software library created to make Natural Language Processing (
-NLP) accessible to
-developers. It provides a variety of pre-trained models and tools for developers to build state-of-the-art NLP systems.
-Hugging Face offers easy-to-use APIs that allow developers to integrate its models with their applications quickly and
-efficiently.
-
-I used HuggingFace for a part of the model (`CLIP`)
-and for the sake of better training, we edited a part of the models that we got from HuggingFace (`CLIP Text Model`)
-
-to make it faster cause there was some implementation that wasn't required and a part of the algorithm was created by myself
-and hugging face does not include those algorithms
+6. Desktop User Interface
