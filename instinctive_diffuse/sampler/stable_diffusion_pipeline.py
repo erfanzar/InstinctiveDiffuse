@@ -2,7 +2,7 @@ import torch
 from diffusers import StableDiffusionPipeline
 from diffusers.image_processor import PipelineImageInput
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
-from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion import rescale_noise_cfg
+from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion import rescale_noise_cfg, retrieve_timesteps
 from diffusers.utils import deprecate
 from typing import List, Optional, Dict, Callable, Union, Any
 
@@ -32,7 +32,6 @@ class InstinctStableDiffusionPipeLine(StableDiffusionPipeline):
             clip_skip: Optional[int] = None,
             callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
             callback_on_step_end_tensor_inputs: Optional[List[str]] = None,
-            progress_bar=None,
             **kwargs,
     ):
         r"""
@@ -226,8 +225,7 @@ class InstinctStableDiffusionPipeLine(StableDiffusionPipeline):
         # 7. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         self._num_timesteps = len(timesteps)
-        progress_bar = progress_bar if progress_bar is not None else self.progress_bar
-        with progress_bar(total=num_inference_steps) as progress_bar:
+        with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 if self.interrupt:
                     continue
@@ -279,7 +277,8 @@ class InstinctStableDiffusionPipeLine(StableDiffusionPipeline):
             image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False, generator=generator)[
                 0
             ]
-            image, has_nsfw_concept = self.run_safety_checker(image, device, prompt_embeds.dtype)
+            # image, has_nsfw_concept = self.run_safety_checker(image, device, prompt_embeds.dtype)
+            has_nsfw_concept = None
         else:
             image = latents
             has_nsfw_concept = None

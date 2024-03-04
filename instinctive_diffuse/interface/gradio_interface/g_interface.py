@@ -23,14 +23,14 @@ class GradioUserInterface:
             self,
             prompt: str,
             options: Optional[List[str]] = None,
-            resolution: Optional[Tuple[int, int]] = None,
+            resolution: Optional[int] = None,
             camera_position: Optional[str] = None,
-            progress_bar=gr.Progress()
+            progress_bar=gr.Progress(track_tqdm=True)
     ):
         if camera_position is None:
             camera_position = ""
         if resolution is None:
-            resolution = [512, 512]
+            resolution = 512
         if options is None:
             options = []
         string_options = ""
@@ -40,12 +40,11 @@ class GradioUserInterface:
         model_input_prompt = prompt + string_options
         generated_sample, nsfw_concept = self.sampler.model(
             prompt=model_input_prompt,
-            height=resolution[0],
-            width=resolution[1],
-            progress_bar=progress_bar,
+            height=resolution,
+            width=resolution,
             return_dict=False
         )
-        return "", generated_sample
+        return "", generated_sample[0]
 
     def _create_generation_components(self):
         with gr.Row():
@@ -64,30 +63,29 @@ class GradioUserInterface:
                 )
                 resolution = gr.Slider(
                     label="Resolution",
-                    value=512,
+                    value=768,
                     maximum=8192,
                     minimum=256,
                     step=8,
                     info=RESOLUTION_INFO
                 )
-
             with gr.Column(scale=4):
-                gr.Markdown(
-                    ABOUT_US_MARKDOWN,
-                )
                 output_image = gr.Image(
                     label="Generated Image",
-                    container=True,
-                    height=740
+                    container=False,
+                    height=728
                 )
-                with gr.Row():
+                with gr.Column():
                     with gr.Column(scale=4):
-                        prompt = gr.Textbox(placeholder="A Dragon Flying above clouds", show_label=True,
-                                            label="Prompt")
-                    with gr.Column(scale=1):
-                        button = gr.Button("Generate Image")
+                        prompt = gr.Textbox(
+                            placeholder="A Dragon Flying above clouds",
+                            show_label=False,
+                            label="Prompt"
+                        )
+                    with gr.Row():
+                        button = gr.Button("Run 🛸")
                         clean = gr.Button("Clean")
-                        stop = gr.Button("Stop")
+                        stop = gr.Button("Stop 🛑")
         inputs = [
             prompt,
             options,
@@ -122,6 +120,9 @@ class GradioUserInterface:
                 ),
                 title="InstinctAI",
         ) as block:
+            gr.Markdown(
+                ABOUT_US_MARKDOWN,
+            )
             with gr.Tab("Text-to-Image"):
                 self._create_generation_components()
         return block

@@ -48,7 +48,7 @@ text prompts.
 ```python
 from diffusers import StableDiffusionPipeline
 
-pipe_line = StableDiffusionPipeline.from_pretrained('erfanzar/InstinctiveDiffuse')
+pipe_line = StableDiffusionPipeline.from_pretrained('Instinct-AI/InstinctiveDiffuse')
 ```
 
 ## WebUI

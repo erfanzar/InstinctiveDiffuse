@@ -5,23 +5,6 @@ import os
 from typing import Union, Optional
 
 
-def config_model(model_path: Union[str, os.PathLike], data_type: torch.dtype = torch.float16):
-    available_gpu_memory = get_gpu_memory()
-
-    ck = {
-        'device_map': 'auto',
-        'max_memory': {i: str(int(available_gpu_memory[i] * 0.95)) + "GiB" for i in range(len(available_gpu_memory))},
-        'torch_dtype': torch.float16
-    }
-    print(ck)
-    print('Loading Stage Two')
-
-    model_ = InstinctStableDiffusionPipeLine.from_pretrained(model_path, **ck)
-    if args.uba:
-        model_.scheduler = DPMSolverMultistepScheduler.from_config(model_.scheduler.config)
-    return model_
-
-
 class TextToImageSampler:
     def __init__(
             self,
@@ -101,11 +84,11 @@ class TextToImageSampler:
             device_map="auto",
             max_gpu_prc_to_use=sampler_config.max_gpu_perc_to_use
         )
-
+        model_state_offload = False
         if max_memory is None:
             max_memory = kw["max_memory"]
         if device_map is None:
-            device_map = kw["device_map"]
+            model_state_offload = True
         if torch_dtype is None:
             torch_dtype = kw["torch_dtype"]
 
@@ -134,7 +117,8 @@ class TextToImageSampler:
             use_onnx=use_onnx,
             load_connected_pipeline=load_connected_pipeline,
         )
-
+        if model_state_offload:
+            model.enable_model_cpu_offload()
         return cls(
             model=model,
             config=sampler_config
