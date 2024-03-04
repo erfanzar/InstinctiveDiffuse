@@ -1,10 +1,10 @@
-from instinctive_diffuse import GradioUserInterface, SamplerConfig, TextToImageSampler
+from src.instinctive_diffuse import GradioUserInterface, SamplerConfig, TextToImageSampler
 
 
 def main():
     sampler_config = SamplerConfig()
     sampler = TextToImageSampler.from_pretrained(
-        "erfanzar/InstinctiveDiffuse",
+        "Instinct-AI/InstinctiveDiffuse",
         sampler_config=sampler_config,
     )
     GradioUserInterface(sampler=sampler).create().launch(share=False)

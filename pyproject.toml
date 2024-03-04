@@ -1,0 +1,41 @@
+[project]
+name = "instinctive_diffuse"
+authors = [
+    { name = "Erfan Zare Chavoshi", email = "Erfanzare810@gmail.com" }
+]
+requires-python = ">=3.8"
+
+readme = "README.md"
+
+version = "0.0.0"
+
+dependencies = [
+    "diffusers>=0.26.2",
+    "torch",
+    "transformers"
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+description = "InstinctiveDiffuse Use pre-trained Models and special Instinc Models with ease"
+
+license = { text = "MIT" }
+
+keywords = [
+    "Torch", "Deep Learning", "Machine Learning", "Diffusers"
+]
+
+[build-system]
+requires = ["setuptools>=46.4.0", "wheel>=0.34.2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages]
+
+find = { where = ["src"] }
